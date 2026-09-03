@@ -18,7 +18,7 @@ export default function Footer({ onOpenBooking, salonInfo, onOpenAdmin }) {
   };
 
   return (
-    <footer className="bg-[#070605] text-[#FBF3EC] pt-20 pb-12 border-t border-[#D4AF37]/30">
+    <footer className="bg-[#050403] text-[#FBF3EC] pt-20 pb-12 border-t border-[#D4AF37]/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Top Footer Grid */}
@@ -29,16 +29,16 @@ export default function Footer({ onOpenBooking, salonInfo, onOpenAdmin }) {
             <span className="font-serif text-3xl font-medium tracking-tight text-[#FBF3EC] italic block">
               Peach Salon
             </span>
-            <span className="text-xs uppercase tracking-[0.25em] text-[#D4AF37] font-modern font-semibold block -mt-2">
+            <span className="text-[10px] uppercase tracking-[0.25em] text-[#D4AF37] font-futuristic font-bold block -mt-2">
               Atelier &amp; Haute Coiffure • Manauri, Prayagraj
             </span>
-            <p className="text-xs sm:text-sm text-[#D1C2BA]/80 max-w-sm leading-relaxed">
-              Founded &amp; directed by <strong className="text-[#F3E5AB]">{salonInfo?.owner || "Eshivi"}</strong>. Treating every head of hair and makeup commission as an heirloom artwork. Specialized in molecular texture reconstruction, royal bridal couture, and paparazzi-proof gala architecture.
+            <p className="text-xs sm:text-sm text-[#D1C2BA]/80 max-w-sm leading-relaxed font-sans">
+              Founded &amp; directed by <strong className="text-[#F3E5AB] font-futuristic">{salonInfo?.owner || "Eshivi"}</strong>. Treating every head of hair and makeup commission as an heirloom artwork. Specialized in molecular texture reconstruction, royal bridal couture, and paparazzi-proof gala architecture.
             </p>
             <div className="pt-2">
               <button
                 onClick={() => onOpenBooking()}
-                className="inline-flex items-center gap-2 bg-[#D4AF37] hover:bg-[#F3E5AB] text-[#0D0B0A] px-5 py-2.5 rounded-sm text-xs font-serif font-bold tracking-wide transition-colors cursor-pointer"
+                className="inline-flex items-center gap-2 bg-[#D4AF37] hover:bg-[#F3E5AB] text-[#0A0807] px-5 py-2.5 rounded-sm text-xs font-futuristic font-bold uppercase tracking-wider transition-colors cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 Reserve a Chair with Eshivi
@@ -54,22 +54,22 @@ export default function Footer({ onOpenBooking, salonInfo, onOpenAdmin }) {
             
             <div className="flex items-start gap-2.5">
               <MapPin className="w-4 h-4 text-[#EE9A70] shrink-0 mt-0.5" />
-              <span>{salonInfo?.address || "GT Road, Manauri, Prayagraj, Uttar Pradesh 212212"}</span>
+              <span className="font-sans">{salonInfo?.address || "GT Road, Manauri, Prayagraj, Uttar Pradesh 212212"}</span>
             </div>
 
             <div className="flex items-center gap-2.5">
               <Clock className="w-4 h-4 text-[#EE9A70] shrink-0" />
-              <span>{salonInfo?.hours || "Monday – Saturday, 10:00 – 18:00 (Closed Sundays)"}</span>
+              <span className="font-futuristic">{salonInfo?.hours || "Monday – Saturday, 10:00 – 18:00 (Closed Sundays)"}</span>
             </div>
 
             <div className="flex items-center gap-2.5">
               <Phone className="w-4 h-4 text-[#EE9A70] shrink-0" />
-              <span>VIP Direct / WhatsApp: {salonInfo?.phone || "+91 98390 12345"}</span>
+              <span className="font-futuristic">VIP Direct: {salonInfo?.phone || "+91 98390 12345"}</span>
             </div>
 
             <div className="flex items-center gap-2.5">
               <Mail className="w-4 h-4 text-[#EE9A70] shrink-0" />
-              <span>{salonInfo?.email || "eshivi@peachsalon.in"}</span>
+              <span className="font-sans">{salonInfo?.email || "eshivi@peachsalon.in"}</span>
             </div>
           </div>
 
@@ -78,7 +78,7 @@ export default function Footer({ onOpenBooking, salonInfo, onOpenAdmin }) {
             <h4 className="font-serif text-base text-[#F3E5AB] font-semibold">
               The Peach Gazette
             </h4>
-            <p className="text-xs text-[#D1C2BA]/80 leading-relaxed">
+            <p className="text-xs text-[#D1C2BA]/80 leading-relaxed font-sans">
               Receive private invitations to seasonal bridal previews, trichology clinical releases, and styling trunk shows in Prayagraj.
             </p>
 
@@ -89,19 +89,19 @@ export default function Footer({ onOpenBooking, salonInfo, onOpenAdmin }) {
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                   placeholder="Enter your email address"
-                  className="bg-[#161210] border border-[#D4AF37]/30 rounded px-3 py-2 text-xs text-white placeholder:text-[#D1C2BA]/40 flex-1 focus:outline-none focus:border-[#EE9A70]"
+                  className="bg-[#14100E] border border-[#D4AF37]/30 rounded px-3 py-2 text-xs text-white placeholder:text-[#D1C2BA]/40 flex-1 focus:outline-none focus:border-[#EE9A70]"
                   required
                 />
                 <button
                   type="submit"
-                  className="bg-[#EE9A70] hover:bg-[#F6C6A8] text-[#0D0B0A] p-2.5 rounded text-xs transition-colors cursor-pointer"
+                  className="bg-[#EE9A70] hover:bg-[#F6C6A8] text-[#0A0807] p-2.5 rounded text-xs transition-colors cursor-pointer"
                   title="Subscribe"
                 >
                   <Send className="w-4 h-4" />
                 </button>
               </div>
               {subscribed && (
-                <span className="text-[11px] text-[#EE9A70] block">
+                <span className="text-[11px] text-[#EE9A70] block font-futuristic">
                   ✓ Thank you. You have been added to our private register.
                 </span>
               )}
@@ -110,7 +110,7 @@ export default function Footer({ onOpenBooking, salonInfo, onOpenAdmin }) {
             <div className="pt-2">
               <button
                 onClick={onOpenAdmin}
-                className="inline-flex items-center gap-1.5 text-xs text-[#D4AF37]/80 hover:text-[#EE9A70] border border-[#D4AF37]/20 px-3 py-1.5 rounded bg-[#161210] transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-futuristic text-[#D4AF37]/80 hover:text-[#EE9A70] border border-[#D4AF37]/20 px-3 py-1.5 rounded bg-[#14100E] transition-colors cursor-pointer"
               >
                 <Lock className="w-3.5 h-3.5 text-[#EE9A70]" />
                 Owner Portal (Eshivi's Edit Panel)
@@ -124,7 +124,7 @@ export default function Footer({ onOpenBooking, salonInfo, onOpenAdmin }) {
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#D1C2BA]/60">
           <p>© 2026 Peach Salon &amp; Atelier, Manauri, Prayagraj. Founded by Eshivi. All appointments are by prior consultation.</p>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 font-futuristic uppercase text-[11px]">
             <a href="#hair" className="hover:text-[#EE9A70] transition-colors">Hair Science</a>
             <a href="#makeup" className="hover:text-[#EE9A70] transition-colors">Makeup Lab</a>
             <a href="#bridal" className="hover:text-[#EE9A70] transition-colors">Royal Bridal</a>

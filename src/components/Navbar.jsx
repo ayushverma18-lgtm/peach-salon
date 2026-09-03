@@ -16,9 +16,9 @@ export default function Navbar({ onOpenBooking, cartCount, onOpenCart, isMuted, 
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-[#0D0B0A]/90 backdrop-blur-md border-b border-[#D4AF37]/30 text-[#FBF3EC] transition-all">
+    <header className="sticky top-0 z-40 bg-[#0A0807]/92 backdrop-blur-md border-b border-[#D4AF37]/30 text-[#FBF3EC] transition-all">
       {/* Top micro ticker for live atelier status */}
-      <div className="bg-[#161210] border-b border-[#D4AF37]/20 py-1.5 px-4 text-xs font-modern text-[#D1C2BA]">
+      <div className="bg-[#14100E] border-b border-[#D4AF37]/20 py-1.5 px-4 text-xs font-futuristic text-[#D1C2BA]">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#EE9A70] animate-pulse"></span>
@@ -28,9 +28,9 @@ export default function Navbar({ onOpenBooking, cartCount, onOpenCart, isMuted, 
           </div>
 
           <div className="hidden md:flex items-center gap-6 text-[11px] text-[#D1C2BA]/80">
-            <span>Timing: 10:00 AM – 6:00 PM (Closed Sundays)</span>
+            <span>10:00 AM – 6:00 PM (Closed Sundays)</span>
             <span>•</span>
-            <span>Founder &amp; Director: <strong className="text-[#F3E5AB]">{salonInfo?.owner || "Eshivi"}</strong></span>
+            <span>Founder: <strong className="text-[#F3E5AB] font-bold">{salonInfo?.owner || "Eshivi"}</strong></span>
             <span>•</span>
             <button 
               onClick={onOpenAdmin}
@@ -53,14 +53,14 @@ export default function Navbar({ onOpenBooking, cartCount, onOpenCart, isMuted, 
               <span className="font-serif text-2xl sm:text-3xl font-medium tracking-tight text-[#FBF3EC] italic leading-tight">
                 Peach Salon
               </span>
-              <span className="text-[9px] uppercase tracking-[0.25em] font-modern text-[#D4AF37] font-semibold -mt-0.5">
+              <span className="text-[9px] uppercase tracking-[0.25em] font-futuristic text-[#D4AF37] font-semibold -mt-0.5">
                 Atelier • Manauri, Prayagraj
               </span>
             </a>
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden xl:flex items-center gap-6 text-xs font-modern font-medium tracking-wider uppercase text-[#D1C2BA]">
+          <nav className="hidden xl:flex items-center gap-6 text-[11px] font-futuristic font-semibold tracking-widest uppercase text-[#D1C2BA]">
             {navLinks.map((link) => (
               <a
                 key={link.name}
@@ -78,7 +78,7 @@ export default function Navbar({ onOpenBooking, cartCount, onOpenCart, isMuted, 
             {/* Audio Ambience Synthesizer Toggle */}
             <button
               onClick={toggleAudio}
-              className="p-2 rounded-full border border-[#D4AF37]/30 text-[#D1C2BA] hover:text-[#EE9A70] hover:border-[#EE9A70] transition-all bg-[#1F1916] cursor-pointer"
+              className="p-2 rounded-full border border-[#D4AF37]/30 text-[#D1C2BA] hover:text-[#EE9A70] hover:border-[#EE9A70] transition-all bg-[#1A1412] cursor-pointer"
               title={isMuted ? "Unmute Ambient Lounge Chimes" : "Mute Sound"}
             >
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4 text-[#EE9A70] animate-pulse" />}
@@ -87,12 +87,12 @@ export default function Navbar({ onOpenBooking, cartCount, onOpenCart, isMuted, 
             {/* Cart Button */}
             <button
               onClick={onOpenCart}
-              className="relative p-2 rounded-full border border-[#D4AF37]/30 text-[#D1C2BA] hover:text-[#EE9A70] hover:border-[#EE9A70] transition-all bg-[#1F1916] cursor-pointer"
+              className="relative p-2 rounded-full border border-[#D4AF37]/30 text-[#D1C2BA] hover:text-[#EE9A70] hover:border-[#EE9A70] transition-all bg-[#1A1412] cursor-pointer"
               title="View Apothecary Bag"
             >
               <ShoppingBag className="w-4 h-4" />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#EE9A70] text-[#0D0B0A] text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-bounce">
+                <span className="absolute -top-1 -right-1 bg-[#EE9A70] text-[#0A0807] text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-bounce">
                   {cartCount}
                 </span>
               )}
@@ -101,9 +101,9 @@ export default function Navbar({ onOpenBooking, cartCount, onOpenCart, isMuted, 
             {/* Reserve Appointment CTA Button */}
             <button
               onClick={() => onOpenBooking()}
-              className="hidden sm:inline-flex items-center gap-2 bg-[#D4AF37] hover:bg-[#F3E5AB] text-[#0D0B0A] px-5 py-2.5 rounded-sm text-xs font-serif font-bold tracking-wide transition-all shadow-md shadow-[#D4AF37]/20 cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-2 bg-[#D4AF37] hover:bg-[#F3E5AB] text-[#0A0807] px-5 py-2.5 rounded-sm text-xs font-futuristic font-bold uppercase tracking-wider transition-all shadow-md shadow-[#D4AF37]/20 cursor-pointer"
             >
-              <Calendar className="w-3.5 h-3.5 text-[#0D0B0A]" />
+              <Calendar className="w-3.5 h-3.5 text-[#0A0807]" />
               Reserve a Chair
             </button>
 
@@ -122,8 +122,8 @@ export default function Navbar({ onOpenBooking, cartCount, onOpenCart, isMuted, 
 
       {/* Mobile Drawer Menu */}
       {mobileOpen && (
-        <div className="xl:hidden bg-[#161210] border-b border-[#D4AF37]/30 px-6 py-6 space-y-4 animate-in slide-in-from-top duration-200">
-          <nav className="flex flex-col gap-3 text-sm font-modern tracking-wider uppercase text-[#D1C2BA]">
+        <div className="xl:hidden bg-[#14100E] border-b border-[#D4AF37]/30 px-6 py-6 space-y-4 animate-in slide-in-from-top duration-200">
+          <nav className="flex flex-col gap-3 text-xs font-futuristic uppercase tracking-wider text-[#D1C2BA]">
             {navLinks.map((link) => (
               <a
                 key={link.name}
@@ -142,7 +142,7 @@ export default function Navbar({ onOpenBooking, cartCount, onOpenCart, isMuted, 
                 setMobileOpen(false);
                 onOpenBooking();
               }}
-              className="w-full inline-flex items-center justify-center gap-2 bg-[#D4AF37] text-[#0D0B0A] py-3 rounded-sm text-xs font-serif font-bold tracking-wide shadow-md"
+              className="w-full inline-flex items-center justify-center gap-2 bg-[#D4AF37] text-[#0A0807] py-3 rounded-sm text-xs font-futuristic font-bold uppercase tracking-wider shadow-md"
             >
               <Calendar className="w-4 h-4" />
               Reserve a Chair in Prayagraj
@@ -153,7 +153,7 @@ export default function Navbar({ onOpenBooking, cartCount, onOpenCart, isMuted, 
                 setMobileOpen(false);
                 onOpenAdmin();
               }}
-              className="w-full inline-flex items-center justify-center gap-2 bg-[#1F1916] text-[#EE9A70] border border-[#D4AF37]/30 py-2.5 rounded-sm text-xs font-serif"
+              className="w-full inline-flex items-center justify-center gap-2 bg-[#1A1412] text-[#EE9A70] border border-[#D4AF37]/30 py-2.5 rounded-sm text-xs font-futuristic uppercase tracking-wider"
             >
               <Lock className="w-3.5 h-3.5" />
               Owner Portal (Eshivi)

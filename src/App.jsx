@@ -17,6 +17,7 @@ import CartDrawer from './components/CartDrawer';
 import AdminPortal from './components/AdminPortal';
 import useAmbientAudio from './components/AudioSynthesizer';
 import { INITIAL_SALON_INFO, INITIAL_SERVICES_LIST, INITIAL_PRODUCTS } from './data/salonData';
+import { api } from './services/api';
 
 export default function App() {
   // Dynamic Salon Info (Owner: Eshivi, Address: Manauri, Prayagraj)
@@ -61,6 +62,25 @@ export default function App() {
   const [cart, setCart] = useState([]);
   const [isMuted, setIsMuted] = useState(true);
   const [adminOpen, setAdminOpen] = useState(false);
+
+  // Initial Sync from Express + Firebase API
+  useEffect(() => {
+    async function syncBackendData() {
+      try {
+        const cloudSettings = await api.getSettings();
+        if (cloudSettings) {
+          setSalonInfo(cloudSettings);
+        }
+        const cloudBookings = await api.getBookings();
+        if (cloudBookings && cloudBookings.length > 0) {
+          setBookings(cloudBookings);
+        }
+      } catch (err) {
+        console.warn('Initial backend sync notice:', err.message);
+      }
+    }
+    syncBackendData();
+  }, []);
 
   // Sync to localStorage
   useEffect(() => {
@@ -170,7 +190,7 @@ export default function App() {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-[#0D0B0A] text-[#FBF3EC] flex flex-col font-sans selection:bg-[#EE9A70]/30 selection:text-white">
+    <div className="min-h-screen bg-[#0A0807] text-[#FBF3EC] flex flex-col font-sans selection:bg-[#EE9A70]/30 selection:text-white">
       
       {/* Sticky Haute Navbar */}
       <Navbar 
@@ -229,7 +249,7 @@ export default function App() {
         onOpenAdmin={() => setAdminOpen(true)}
       />
 
-      {/* Booking Modal (With Clear & Cancel/Delete Actions) */}
+      {/* Booking Modal (With Clear & Cancel/Delete Actions connected to API) */}
       <BookingModal
         isOpen={bookingOpen}
         onClose={() => setBookingOpen(false)}
@@ -250,7 +270,7 @@ export default function App() {
         onClearCart={handleClearCart}
       />
 
-      {/* Private Owner Edit Portal (For Eshivi) */}
+      {/* Private Owner Edit Portal (For Eshivi - Express & Firebase Connected) */}
       <AdminPortal
         isOpen={adminOpen}
         onClose={() => setAdminOpen(false)}
