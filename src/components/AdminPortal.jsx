@@ -64,6 +64,15 @@ export default function AdminPortal({
     e.preventDefault();
     setLoading(true);
     try {
+      // 1. Check custom passcode from saved salon settings if set
+      const activeCustomPin = salonInfo?.customPasscode || formData?.customPasscode;
+      if (activeCustomPin && passcode === activeCustomPin) {
+        setIsAuthenticated(true);
+        setAuthError(false);
+        setLoading(false);
+        return;
+      }
+
       const res = await api.ownerLogin(passcode);
       if (res.success) {
         setIsAuthenticated(true);
@@ -72,8 +81,9 @@ export default function AdminPortal({
         setAuthError(true);
       }
     } catch (err) {
-      // Fallback
-      if (passcode.toLowerCase() === 'eshivi' || passcode === '1234' || passcode === '2026') {
+      // Fallback default pins if no custom pin set
+      const defaultPins = ['eshivi', '1234', '2026'];
+      if (defaultPins.includes(passcode.toLowerCase()) || defaultPins.includes(passcode)) {
         setIsAuthenticated(true);
         setAuthError(false);
       } else {
@@ -167,9 +177,7 @@ export default function AdminPortal({
               </button>
             </form>
 
-            <div className="p-3 bg-[#1A1412] rounded-lg border border-white/10 text-[11px] text-[#D1C2BA]/70 font-sans">
-              💡 Owner Access Passcode: <code className="text-[#EE9A70] font-futuristic font-bold">eshivi</code> or <code className="text-[#EE9A70] font-futuristic font-bold">1234</code>
-            </div>
+
           </div>
         ) : (
           /* AUTHENTICATED MANAGEMENT DASHBOARD */
@@ -412,6 +420,22 @@ export default function AdminPortal({
                       className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-xs text-[#FBF3EC]"
                       required
                     />
+                  </div>
+
+                  <div className="sm:col-span-2 pt-2 border-t border-[#D4AF37]/20">
+                    <label className="block text-xs font-futuristic font-bold text-[#EE9A70] uppercase tracking-wider mb-1">
+                      🔒 Change Secret Owner Passcode / PIN
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Enter new secret password (e.g. MySecretPin2026)"
+                      value={formData.customPasscode || ''}
+                      onChange={(e) => setFormData({ ...formData, customPasscode: e.target.value })}
+                      className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#EE9A70]/50 text-xs text-[#FBF3EC] font-futuristic"
+                    />
+                    <span className="text-[11px] text-[#D1C2BA]/70 mt-1 block">
+                      Change this anytime to keep your portal strictly private. Only you will know this PIN.
+                    </span>
                   </div>
                 </div>
 
