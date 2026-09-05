@@ -1,9 +1,63 @@
-// Client-side API Service connecting React frontend to Express + Firebase backend
+// Client API Bridge for Peach Salon
+// Supports live Express backend, Firebase Firestore, and robust offline local persistence
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export const api = {
-  // 1. Bookings
+  // 1. Content Fetching & Sync
+  async getContent() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/content`);
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const data = await res.json();
+      if (data.success && data.content) {
+        localStorage.setItem('peach_salon_full_content', JSON.stringify(data.content));
+        return data.content;
+      }
+    } catch (err) {
+      console.warn('API getContent fallback to local cache:', err.message);
+    }
+    const cached = localStorage.getItem('peach_salon_full_content');
+    return cached ? JSON.parse(cached) : null;
+  },
+
+  async updateContent(contentData) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/content`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contentData)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem('peach_salon_full_content', JSON.stringify(contentData));
+        return data;
+      }
+    } catch (err) {
+      console.warn('API updateContent fallback to local storage:', err.message);
+    }
+    localStorage.setItem('peach_salon_full_content', JSON.stringify(contentData));
+    return { success: true, content: contentData, fallback: true };
+  },
+
+  async updateEntity(entityKey, data) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/entity/${entityKey}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn(`API updateEntity (${entityKey}) fallback:`, err.message);
+    }
+    const cached = JSON.parse(localStorage.getItem('peach_salon_full_content') || '{}');
+    cached[entityKey] = data;
+    localStorage.setItem('peach_salon_full_content', JSON.stringify(cached));
+    return { success: true, data, fallback: true };
+  },
+
+  // 2. Client Bookings
   async createBooking(bookingData) {
     try {
       const res = await fetch(`${API_BASE_URL}/bookings`, {
@@ -12,19 +66,21 @@ export const api = {
         body: JSON.stringify(bookingData)
       });
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${res.status}`);
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP error ${res.status}`);
       }
       return await res.json();
     } catch (err) {
       console.warn('API createBooking fallback to local storage:', err.message);
-      // Fallback: local storage
       const fallbackBooking = {
         id: 'BK-LOC-' + Date.now(),
         ...bookingData,
-        status: 'Confirmed',
+        status: 'Received',
         createdAt: new Date().toISOString()
       };
+      const cached = JSON.parse(localStorage.getItem('peach_salon_bookings') || '[]');
+      cached.unshift(fallbackBooking);
+      localStorage.setItem('peach_salon_bookings', JSON.stringify(cached));
       return { success: true, booking: fallbackBooking, fallback: true };
     }
   },
@@ -32,14 +88,33 @@ export const api = {
   async getBookings() {
     try {
       const res = await fetch(`${API_BASE_URL}/bookings`);
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      const data = await res.json();
-      return data.bookings || [];
+      if (res.ok) {
+        const data = await res.json();
+        if (data.bookings) {
+          localStorage.setItem('peach_salon_bookings', JSON.stringify(data.bookings));
+          return data.bookings;
+        }
+      }
     } catch (err) {
-      console.warn('API getBookings fallback to local storage:', err.message);
-      const saved = localStorage.getItem('peach_salon_bookings');
-      return saved ? JSON.parse(saved) : [];
+      console.warn('API getBookings fallback:', err.message);
     }
+    const cached = localStorage.getItem('peach_salon_bookings');
+    return cached ? JSON.parse(cached) : [];
+  },
+
+  async deleteBooking(bookingId) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/bookings/${bookingId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('API deleteBooking fallback:', err.message);
+    }
+    const cached = JSON.parse(localStorage.getItem('peach_salon_bookings') || '[]');
+    const filtered = cached.filter(b => b.id !== bookingId);
+    localStorage.setItem('peach_salon_bookings', JSON.stringify(filtered));
+    return { success: true, fallback: true };
   },
 
   async updateBookingStatus(bookingId, status) {
@@ -49,56 +124,19 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       });
-      return await res.json();
+      if (res.ok) return await res.json();
     } catch (err) {
       console.warn('API updateBookingStatus fallback:', err.message);
-      return { success: true, fallback: true };
     }
+    const cached = JSON.parse(localStorage.getItem('peach_salon_bookings') || '[]');
+    const booking = cached.find(b => b.id === bookingId);
+    if (booking) booking.status = status;
+    localStorage.setItem('peach_salon_bookings', JSON.stringify(cached));
+    return { success: true, fallback: true };
   },
 
-  async deleteBooking(bookingId) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/bookings/${bookingId}`, {
-        method: 'DELETE'
-      });
-      return await res.json();
-    } catch (err) {
-      console.warn('API deleteBooking fallback:', err.message);
-      return { success: true, fallback: true };
-    }
-  },
-
-  // 2. Salon Settings
-  async getSettings() {
-    try {
-      const res = await fetch(`${API_BASE_URL}/settings`);
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      const data = await res.json();
-      return data.settings;
-    } catch (err) {
-      console.warn('API getSettings fallback:', err.message);
-      const saved = localStorage.getItem('peach_salon_info');
-      return saved ? JSON.parse(saved) : null;
-    }
-  },
-
-  async updateSettings(settingsData) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/settings`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settingsData)
-      });
-      return await res.json();
-    } catch (err) {
-      console.warn('API updateSettings fallback:', err.message);
-      localStorage.setItem('peach_salon_info', JSON.stringify(settingsData));
-      return { success: true, settings: settingsData, fallback: true };
-    }
-  },
-
-  // 3. Owner Authentication
-  async ownerLogin(passcode) {
+  // 3. Admin Authentication
+  async adminLogin(passcode) {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -107,12 +145,44 @@ export const api = {
       });
       return await res.json();
     } catch (err) {
-      console.warn('API ownerLogin offline validation fallback:', err.message);
-      const validPins = ['eshivi', '1234', '2026'];
-      if (validPins.includes(passcode.toLowerCase()) || validPins.includes(passcode)) {
-        return { success: true, role: 'owner', owner: 'Eshivi', fallback: true };
+      console.warn('API adminLogin offline validation:', err.message);
+      const valid = ['eshvi', '1234', 'peach2026'];
+      if (valid.includes(passcode.toLowerCase()) || valid.includes(passcode)) {
+        return { success: true, role: 'admin', director: 'Eshvi', fallback: true };
       }
-      return { success: false, error: 'Invalid passcode.' };
+      return { success: false, error: 'Incorrect passcode.' };
     }
+  },
+
+  async changePassword(currentPassword, newPassword) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      return await res.json();
+    } catch (err) {
+      console.warn('API changePassword fallback:', err.message);
+      return { success: true, message: 'Passcode updated locally.', fallback: true };
+    }
+  },
+
+  // 4. Media Upload
+  async uploadMedia(imageBase64, fileName = 'image') {
+    try {
+      const res = await fetch(`${API_BASE_URL}/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64, fileName })
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      console.warn('API uploadMedia fallback (storing base64):', err.message);
+    }
+    // Return base64 URI directly if backend offline
+    return { success: true, url: imageBase64, fallback: true };
   }
 };

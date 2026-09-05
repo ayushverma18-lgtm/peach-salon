@@ -1,38 +1,33 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #FBF3EC;
-  --bg-dark: #0A0807;
-  --bg-dark-secondary: #14100E;
-  --bg-dark-card: #1A1412;
-  --plum: #241118;
-  --text-main: #FBF3EC;
-  --text-muted: #D1C2BA;
-  --peach: #EE9A70;
-  --peach-soft: #F6C6A8;
-  --blush: #F8DFCB;
-  --gold: #D4AF37;
-  --gold-light: #F3E5AB;
-  --gold-muted: #B98F63;
-  --line: rgba(212, 175, 55, 0.22);
-  --line-peach: rgba(238, 154, 112, 0.28);
-  --font-serif: 'Fraunces', serif;
-  --font-sans: 'Plus Jakarta Sans', sans-serif;
-  --font-futuristic: 'Space Grotesk', sans-serif;
-  --font-couture: 'Syne', sans-serif;
+  --bg-main: #FFF9F7;
+  --bg-card: #FFFFFF;
+  --bg-soft-peach: #FDF3EF;
+  --bg-dusty-pink: #F8E8E4;
+  --text-main: #2D2424;
+  --text-muted: #6E5E5C;
+  --text-light: #8E7C7A;
+  --primary-pink: #C4727F;
+  --primary-pink-hover: #B25F6C;
+  --primary-peach: #E89A88;
+  --border-soft: #EFE3DF;
+  --border-pink: #E8CAC4;
+  --font-serif: 'Playfair Display', 'Fraunces', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 html {
   scroll-behavior: smooth;
   color: var(--text-main);
-  background-color: var(--bg-dark);
+  background-color: var(--bg-main);
   font-family: var(--font-sans);
 }
 
 body {
   margin: 0;
   overflow-x: hidden;
-  background: var(--bg-dark);
+  background: var(--bg-main);
   color: var(--text-main);
 }
 
@@ -45,34 +40,26 @@ body {
   font-family: var(--font-sans);
 }
 
-.font-futuristic {
-  font-family: var(--font-futuristic);
-}
-
-.font-couture {
-  font-family: var(--font-couture);
-}
-
-/* Custom Futuristic Luxury Scrollbar */
+/* Clean Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #0A0807;
+  background: #FFF5F2;
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #D4AF37 0%, #EE9A70 100%);
+  background: #E2B8B0;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #F3E5AB;
+  background: #C4727F;
 }
 
 /* Smooth Scroll Reveal Animations */
 .reveal-on-scroll {
   opacity: 0;
-  transform: translateY(28px);
-  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(20px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: opacity, transform;
 }
 
@@ -81,70 +68,55 @@ body {
   transform: translateY(0px) !important;
 }
 
-/* Animated Golden Thread Path */
-.thread-path {
-  fill: none;
-  stroke: url(#heroThreadGradient);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-dasharray: 1400;
-  stroke-dashoffset: 1400;
-  animation: draw 2.4s cubic-bezier(0.5, 0.1, 0.2, 1) 0.2s forwards;
+/* Clean Soft Card */
+.studio-card {
+  background: #FFFFFF;
+  border: 1px solid #EFE3DF;
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px -4px rgba(74, 50, 45, 0.04);
+  transition: all 0.3s ease;
 }
 
-@keyframes draw {
-  to {
-    stroke-dashoffset: 0;
-  }
+.studio-card:hover {
+  border-color: #E2B8B0;
+  box-shadow: 0 10px 30px -6px rgba(196, 114, 127, 0.12);
+  transform: translateY(-2px);
 }
 
-/* Gold Shimmer Text Animation */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+/* Subtle Badge */
+.badge-soft {
+  background-color: #FDF1ED;
+  color: #C4727F;
+  border: 1px solid #F5D7CE;
 }
 
-.gold-shimmer {
-  background: linear-gradient(90deg, #D4AF37 0%, #F6C6A8 30%, #F3E5AB 50%, #EE9A70 70%, #D4AF37 100%);
-  background-size: 200% auto;
-  color: transparent;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: shimmer 5s linear infinite;
-}
-
-/* Futuristic Gold Glow Text */
-.gold-glow-text {
-  text-shadow: 0 0 20px rgba(212, 175, 55, 0.4), 0 0 40px rgba(238, 154, 112, 0.2);
-}
-
-/* Float Animation */
-@keyframes floatSlow {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
-}
-
-.animate-float {
-  animation: floatSlow 5s ease-in-out infinite;
-}
-
-/* Futuristic Glass Card & Chamfer */
-.futuristic-card {
-  background: rgba(22, 17, 15, 0.82);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(212, 175, 55, 0.25);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
-}
-
-.futuristic-card:hover {
-  border-color: rgba(238, 154, 112, 0.65);
-  box-shadow: 0 12px 35px -10px rgba(238, 154, 112, 0.3), 0 0 20px rgba(212, 175, 55, 0.15);
-  transform: translateY(-3px);
-}
-
-/* Custom Selection */
-::selection {
-  background: rgba(238, 154, 112, 0.35);
+/* Soft Button */
+.btn-primary {
+  background-color: #C4727F;
   color: #FFFFFF;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: #B25F6C;
+  box-shadow: 0 4px 14px rgba(196, 114, 127, 0.3);
+}
+
+.btn-secondary {
+  background-color: #FFFFFF;
+  color: #2D2424;
+  border: 1px solid #E8CAC4;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background-color: #FDF3EF;
+  border-color: #C4727F;
+  color: #C4727F;
+}
+
+/* Selection */
+::selection {
+  background: rgba(232, 154, 136, 0.3);
+  color: #2D2424;
 }

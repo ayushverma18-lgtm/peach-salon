@@ -1,103 +1,89 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
-import HairScienceSection from './components/HairScienceSection';
-import MakeupArtistrySection from './components/MakeupArtistrySection';
-import BridalCoutureSection from './components/BridalCoutureSection';
-import GalaEventsSection from './components/GalaEventsSection';
-import AIBeautyArchitect from './components/AIBeautyArchitect';
-import HauteLookbook from './components/HauteLookbook';
-import PeachApothecary from './components/PeachApothecary';
-import StylistsSection from './components/StylistsSection';
-import MembershipsSection from './components/MembershipsSection';
-import TestimonialsSection from './components/TestimonialsSection';
+import AboutSection from './components/AboutSection';
+import BridalMakeupSection from './components/BridalMakeupSection';
+import MakeupServicesSection from './components/MakeupServicesSection';
+import HairServicesSection from './components/HairServicesSection';
+import AddonsSection from './components/AddonsSection';
+import GallerySection from './components/GallerySection';
+import ContactSection from './components/ContactSection';
 import Footer from './components/Footer';
 import BookingModal from './components/BookingModal';
-import CartDrawer from './components/CartDrawer';
 import AdminPortal from './components/AdminPortal';
-import useAmbientAudio from './components/AudioSynthesizer';
-import { INITIAL_SALON_INFO, INITIAL_SERVICES_LIST, INITIAL_PRODUCTS } from './data/salonData';
+import { 
+  INITIAL_SITE_SETTINGS, 
+  INITIAL_HOME_SETTINGS, 
+  INITIAL_ABOUT_SETTINGS, 
+  INITIAL_BRIDAL_PACKAGES, 
+  INITIAL_MAKEUP_SERVICES, 
+  INITIAL_HAIR_SERVICES, 
+  INITIAL_ADDONS, 
+  INITIAL_GALLERY_ITEMS 
+} from './data/salonData';
 import { api } from './services/api';
 
 export default function App() {
-  // Dynamic Salon Info (Owner: Eshivi, Address: Manauri, Prayagraj)
-  const [salonInfo, setSalonInfo] = useState(() => {
-    const saved = localStorage.getItem('peach_salon_info');
+  // Master Content State
+  const [content, setContent] = useState(() => {
+    const saved = localStorage.getItem('peach_salon_full_content');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try { return JSON.parse(saved); } catch (e) { /* fallback */ }
     }
-    return INITIAL_SALON_INFO;
-  });
-
-  // Dynamic Services & Pricing
-  const [services, setServices] = useState(() => {
-    const saved = localStorage.getItem('peach_salon_services');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
-    }
-    return INITIAL_SERVICES_LIST;
-  });
-
-  // Dynamic Apothecary Products
-  const [products, setProducts] = useState(() => {
-    const saved = localStorage.getItem('peach_salon_products');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
-    }
-    return INITIAL_PRODUCTS;
-  });
-
-  // Dynamic Bookings Log
-  const [bookings, setBookings] = useState(() => {
-    const saved = localStorage.getItem('peach_salon_bookings');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
-    }
-    return [];
+    return {
+      site_settings: INITIAL_SITE_SETTINGS,
+      home_settings: INITIAL_HOME_SETTINGS,
+      about_settings: INITIAL_ABOUT_SETTINGS,
+      bridal_packages: INITIAL_BRIDAL_PACKAGES,
+      makeup_services: INITIAL_MAKEUP_SERVICES,
+      hair_services: INITIAL_HAIR_SERVICES,
+      addons: INITIAL_ADDONS,
+      gallery: INITIAL_GALLERY_ITEMS,
+      bookings: []
+    };
   });
 
   const [bookingOpen, setBookingOpen] = useState(false);
   const [selectedServiceForBooking, setSelectedServiceForBooking] = useState('');
-  const [cartOpen, setCartOpen] = useState(false);
-  const [cart, setCart] = useState([]);
-  const [isMuted, setIsMuted] = useState(true);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [activePage, setActivePage] = useState('home');
 
-  // Initial Sync from Express + Firebase API
+  // Initial Data Sync from Express & Firebase Database
   useEffect(() => {
-    async function syncBackendData() {
+    async function loadBackendContent() {
       try {
-        const cloudSettings = await api.getSettings();
-        if (cloudSettings) {
-          setSalonInfo(cloudSettings);
-        }
-        const cloudBookings = await api.getBookings();
-        if (cloudBookings && cloudBookings.length > 0) {
-          setBookings(cloudBookings);
+        const cloudContent = await api.getContent();
+        if (cloudContent) {
+          setContent(prev => ({
+            ...prev,
+            ...cloudContent,
+            site_settings: { ...prev.site_settings, ...(cloudContent.site_settings || {}) },
+            home_settings: { ...prev.home_settings, ...(cloudContent.home_settings || {}) },
+            about_settings: { ...prev.about_settings, ...(cloudContent.about_settings || {}) },
+            bridal_packages: cloudContent.bridal_packages || prev.bridal_packages,
+            makeup_services: cloudContent.makeup_services || prev.makeup_services,
+            hair_services: cloudContent.hair_services || prev.hair_services,
+            addons: cloudContent.addons || prev.addons,
+            gallery: cloudContent.gallery || prev.gallery,
+            bookings: cloudContent.bookings || prev.bookings
+          }));
         }
       } catch (err) {
-        console.warn('Initial backend sync notice:', err.message);
+        console.warn('Backend hydration notice:', err.message);
       }
     }
-    syncBackendData();
+    loadBackendContent();
+
+    // Check if URL is /admin or #admin
+    if (window.location.pathname === '/admin' || window.location.hash === '#admin') {
+      setAdminOpen(true);
+    }
   }, []);
 
-  // Sync to localStorage
+  // Save to localStorage when content updates
   useEffect(() => {
-    localStorage.setItem('peach_salon_info', JSON.stringify(salonInfo));
-  }, [salonInfo]);
-
-  useEffect(() => {
-    localStorage.setItem('peach_salon_services', JSON.stringify(services));
-  }, [services]);
-
-  useEffect(() => {
-    localStorage.setItem('peach_salon_products', JSON.stringify(products));
-  }, [products]);
-
-  useEffect(() => {
-    localStorage.setItem('peach_salon_bookings', JSON.stringify(bookings));
-  }, [bookings]);
+    localStorage.setItem('peach_salon_full_content', JSON.stringify(content));
+  }, [content]);
 
   // Secret Owner Hotkey: Ctrl + Shift + E or Ctrl + Shift + O
   useEffect(() => {
@@ -111,178 +97,121 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Ambient audio synthesizer
-  useAmbientAudio(isMuted);
-
   const handleOpenBooking = (serviceName = '') => {
     setSelectedServiceForBooking(serviceName);
     setBookingOpen(true);
   };
 
-  const handleOpenArchitect = () => {
-    const el = document.getElementById('architect');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  // Booking handlers
   const handleAddBooking = (newBooking) => {
-    setBookings((prev) => [newBooking, ...prev]);
+    setContent(prev => ({
+      ...prev,
+      bookings: [newBooking, ...(prev.bookings || [])]
+    }));
   };
 
-  const handleDeleteBooking = (bookingId) => {
-    setBookings((prev) => prev.filter((b) => b.id !== bookingId));
+  const handleUpdateFullContent = (newContent) => {
+    setContent(newContent);
   };
 
-  const handleClearAllBookings = () => {
-    if (window.confirm('Are you sure you want to clear all client bookings?')) {
-      setBookings([]);
-    }
-  };
-
-  // Owner Update Handlers
-  const handleUpdateSalonInfo = (newInfo) => {
-    setSalonInfo(newInfo);
-  };
-
-  const handleUpdateServicePrice = (serviceId, newPrice) => {
-    setServices((prev) =>
-      prev.map((s) => (s.id === serviceId ? { ...s, price: newPrice } : s))
-    );
-  };
-
-  const handleUpdateProductPrice = (productId, newPrice) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === productId ? { ...p, price: newPrice } : p))
-    );
-  };
-
-  // Cart Handlers
-  const handleAddToCart = (product) => {
-    setCart((prevCart) => {
-      const existing = prevCart.find((item) => item.id === product.id);
-      if (existing) {
-        return prevCart.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-      return [...prevCart, { ...product, quantity: 1 }];
-    });
-  };
-
-  const handleUpdateQuantity = (productId, newQuantity) => {
-    setCart((prevCart) =>
-      prevCart.map((item) =>
-        item.id === productId ? { ...item, quantity: newQuantity } : item
-      )
-    );
-  };
-
-  const handleRemoveFromCart = (productId) => {
-    setCart((prevCart) => prevCart.filter((item) => item.id !== productId));
-  };
-
-  const handleClearCart = () => {
-    setCart([]);
-  };
-
-  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const siteSettings = content.site_settings || INITIAL_SITE_SETTINGS;
+  const homeSettings = content.home_settings || INITIAL_HOME_SETTINGS;
+  const aboutSettings = content.about_settings || INITIAL_ABOUT_SETTINGS;
+  const bridalPackages = content.bridal_packages || INITIAL_BRIDAL_PACKAGES;
+  const makeupServices = content.makeup_services || INITIAL_MAKEUP_SERVICES;
+  const hairServices = content.hair_services || INITIAL_HAIR_SERVICES;
+  const addons = content.addons || INITIAL_ADDONS;
+  const galleryItems = content.gallery || INITIAL_GALLERY_ITEMS;
 
   return (
-    <div className="min-h-screen bg-[#0A0807] text-[#FBF3EC] flex flex-col font-sans selection:bg-[#EE9A70]/30 selection:text-white">
+    <div className="min-h-screen bg-[#FFF9F7] text-[#2D2424] flex flex-col font-sans selection:bg-[#E8A598]/30 selection:text-[#2D2424]">
       
-      {/* Sticky Haute Navbar */}
+      {/* 1. Header Navigation Bar */}
       <Navbar 
         onOpenBooking={handleOpenBooking}
-        cartCount={cartCount}
-        onOpenCart={() => setCartOpen(true)}
-        isMuted={isMuted}
-        toggleAudio={() => setIsMuted(!isMuted)}
-        salonInfo={salonInfo}
+        siteSettings={siteSettings}
         onOpenAdmin={() => setAdminOpen(true)}
+        activePage={activePage}
+        setActivePage={setActivePage}
       />
 
       <main className="flex-1">
-        {/* 1. Hero Section with 10s Video */}
+        
+        {/* 2. Home Hero Section (Real 10-Second Video, Intro, CTAs) */}
         <Hero 
-          onOpenBooking={handleOpenBooking} 
-          onOpenArchitect={handleOpenArchitect} 
-          salonInfo={salonInfo}
+          onOpenBooking={handleOpenBooking}
+          siteSettings={siteSettings}
+          homeSettings={homeSettings}
         />
 
-        {/* 2. Pillar 1: Hair Science & High-End Textures */}
-        <HairScienceSection onOpenBooking={handleOpenBooking} />
+        {/* 3. About Eshvi & Studio Section */}
+        <AboutSection 
+          onOpenBooking={handleOpenBooking}
+          aboutSettings={aboutSettings}
+          siteSettings={siteSettings}
+        />
 
-        {/* 3. Pillar 2: Haute Makeup Artistry & Skin Couture */}
-        <MakeupArtistrySection onOpenBooking={handleOpenBooking} />
+        {/* 4. Dedicated Bridal Makeup Packages (Classic ₹12k, HD ₹15k, Airbrush ₹20k) */}
+        <BridalMakeupSection 
+          onOpenBooking={handleOpenBooking}
+          bridalPackages={bridalPackages}
+        />
 
-        {/* 4. Pillar 3: Royal Bridal Couture */}
-        <BridalCoutureSection onOpenBooking={handleOpenBooking} />
+        {/* 5. Dedicated Makeup Services (Natural, Soft Glam, Velvet, Cocktail Glam, Party) */}
+        <MakeupServicesSection 
+          onOpenBooking={handleOpenBooking}
+          makeupServices={makeupServices}
+        />
 
-        {/* 5. Pillar 4: High-Society Galas & Milestone Functions */}
-        <GalaEventsSection onOpenBooking={handleOpenBooking} />
+        {/* 6. Dedicated Hair Services (Bridal Hair, Bun, Open, Soft Curls, Waves, Party) */}
+        <HairServicesSection 
+          onOpenBooking={handleOpenBooking}
+          hairServices={hairServices}
+        />
 
-        {/* 6. AI Bespoke Beauty Architect */}
-        <AIBeautyArchitect onOpenBooking={handleOpenBooking} />
+        {/* 7. Add-On Services (Private Dressing ₹1,200, Kashmiri Kahwa ₹700) */}
+        <AddonsSection 
+          onOpenBooking={handleOpenBooking}
+          addons={addons}
+        />
 
-        {/* 7. Haute Lookbook & Cinematic Gallery */}
-        <HauteLookbook onOpenBooking={handleOpenBooking} />
+        {/* 8. Real Client Gallery (Real Bridal & Styling Transformations) */}
+        <GallerySection 
+          onOpenBooking={handleOpenBooking}
+          galleryItems={galleryItems}
+        />
 
-        {/* 8. The Peach Apothecary */}
-        <PeachApothecary onAddToCart={handleAddToCart} products={products} />
+        {/* 9. Contact & Booking Form (Exact Manauri Address & 10 AM - 7 PM Timings) */}
+        <ContactSection 
+          siteSettings={siteSettings}
+          onAddBooking={handleAddBooking}
+          bridalPackages={bridalPackages}
+          servicesList={makeupServices}
+        />
 
-        {/* 9. Master Stylists & Directors */}
-        <StylistsSection onOpenBooking={handleOpenBooking} />
-
-        {/* 10. VIP Membership Circle */}
-        <MembershipsSection onOpenBooking={handleOpenBooking} />
-
-        {/* 11. Press Accolades & Testimonials */}
-        <TestimonialsSection />
       </main>
 
-      {/* 12. Flagship Footer */}
+      {/* 10. Studio Footer */}
       <Footer 
-        onOpenBooking={handleOpenBooking} 
-        salonInfo={salonInfo}
+        onOpenBooking={handleOpenBooking}
+        siteSettings={siteSettings}
         onOpenAdmin={() => setAdminOpen(true)}
       />
 
-      {/* Booking Modal (With Clear & Cancel/Delete Actions connected to API) */}
+      {/* 11. Quick Booking Modal Dialog */}
       <BookingModal
         isOpen={bookingOpen}
         onClose={() => setBookingOpen(false)}
         initialService={selectedServiceForBooking}
-        salonInfo={salonInfo}
-        services={services}
+        siteSettings={siteSettings}
         onAddBooking={handleAddBooking}
-        onDeleteBooking={handleDeleteBooking}
       />
 
-      {/* Apothecary Cart Drawer */}
-      <CartDrawer
-        isOpen={cartOpen}
-        onClose={() => setCartOpen(false)}
-        cart={cart}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemoveItem={handleRemoveFromCart}
-        onClearCart={handleClearCart}
-      />
-
-      {/* Private Owner Edit Portal (For Eshivi - Express & Firebase Connected) */}
+      {/* 12. Complete Admin Portal (Eshvi's Dashboard for Site & Packages) */}
       <AdminPortal
         isOpen={adminOpen}
         onClose={() => setAdminOpen(false)}
-        salonInfo={salonInfo}
-        onUpdateSalonInfo={handleUpdateSalonInfo}
-        bookings={bookings}
-        onDeleteBooking={handleDeleteBooking}
-        onClearAllBookings={handleClearAllBookings}
-        services={services}
-        onUpdateServicePrice={handleUpdateServicePrice}
-        products={products}
-        onUpdateProductPrice={handleUpdateProductPrice}
+        fullContent={content}
+        onUpdateFullContent={handleUpdateFullContent}
       />
 
     </div>

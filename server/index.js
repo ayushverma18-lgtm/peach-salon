@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 import { dbService } from './firebaseConfig.js';
 
 dotenv.config();
@@ -8,13 +10,23 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Ensure public upload directories exist
+const uploadDir = path.resolve('public', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 // Middleware
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Static uploads serving
+app.use('/uploads', express.static(uploadDir));
 
 // Request logger
 app.use((req, res, next) => {
@@ -22,70 +34,96 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    service: 'Peach Salon & Atelier API',
+    service: 'Peach Salon — Bridal Makeup & Hair Studio API',
+    location: 'Manauri, Prayagraj',
+    director: 'Eshvi',
     cloudFirebaseActive: dbService.isCloudFirebase(),
     timestamp: new Date().toISOString()
   });
 });
 
 // -------------------------------------------------------------
-// 1. BOOKINGS API (Client Booking Modal & Owner Management)
+// 1. FULL CONTENT & ENTITY MANAGEMENT API (For Admin & Frontend)
 // -------------------------------------------------------------
 
-// POST /api/bookings - Submit a new client appointment
+// GET /api/content - Retrieve all active website content
+app.get('/api/content', async (req, res) => {
+  try {
+    const content = await dbService.getFullContent();
+    return res.json({ success: true, content });
+  } catch (error) {
+    console.error('Error fetching content:', error);
+    return res.status(500).json({ error: 'Failed to retrieve website content.' });
+  }
+});
+
+// PUT /api/content - Update full or partial website content (Admin)
+app.put('/api/content', async (req, res) => {
+  try {
+    const updatedContent = await dbService.updateFullContent(req.body);
+    return res.json({ success: true, message: 'Content synchronized successfully.', content: updatedContent });
+  } catch (error) {
+    console.error('Error updating content:', error);
+    return res.status(500).json({ error: 'Failed to update content.' });
+  }
+});
+
+// PUT /api/entity/:key - Update a specific entity (e.g. bridal_packages, site_settings, gallery)
+app.put('/api/entity/:key', async (req, res) => {
+  try {
+    const { key } = req.params;
+    const updated = await dbService.updateEntity(key, req.body);
+    return res.json({ success: true, message: `${key} updated successfully.`, data: updated });
+  } catch (error) {
+    console.error(`Error updating entity ${req.params.key}:`, error);
+    return res.status(500).json({ error: `Failed to update ${req.params.key}.` });
+  }
+});
+
+// -------------------------------------------------------------
+// 2. APPOINTMENT BOOKINGS API
+// -------------------------------------------------------------
+
+// POST /api/bookings - Submit client appointment inquiry
 app.post('/api/bookings', async (req, res) => {
   try {
     const {
-      service,
-      stylist,
-      date,
-      time,
       clientName,
       phone,
-      email,
-      notes,
-      suiteUpgrade,
-      champagneService
+      service,
+      date,
+      time,
+      message,
+      selectedAddons
     } = req.body;
 
     // Validation
-    if (!service || !clientName || !phone || !date || !time) {
+    if (!clientName || !phone || !service || !date) {
       return res.status(400).json({
-        error: 'Missing required booking fields (service, clientName, phone, date, time).'
-      });
-    }
-
-    // Check Sunday closure rule
-    const selectedDate = new Date(date);
-    if (selectedDate.getDay() === 0) {
-      return res.status(400).json({
-        error: 'Peach Salon is closed on Sundays. Please select Monday through Saturday.'
+        error: 'Please fill all required fields: Name, Phone Number, Service, and Date.'
       });
     }
 
     const bookingPayload = {
+      clientName: clientName.trim(),
+      phone: phone.trim(),
       service,
-      stylist: stylist || 'Eshivi',
       date,
-      time,
-      clientName,
-      phone,
-      email: email || '',
-      notes: notes || '',
-      suiteUpgrade: Boolean(suiteUpgrade),
-      champagneService: Boolean(champagneService),
-      status: 'Confirmed'
+      time: time || '11:00 AM',
+      message: message || '',
+      selectedAddons: selectedAddons || [],
+      status: 'Received'
     };
 
     const createdBooking = await dbService.createBooking(bookingPayload);
 
     return res.status(201).json({
       success: true,
-      message: 'Appointment reserved successfully at Peach Atelier, Manauri Prayagraj.',
+      message: 'Thank you! Your appointment inquiry has been received at Peach Salon, Manauri.',
       booking: createdBooking
     });
   } catch (error) {
@@ -94,115 +132,140 @@ app.post('/api/bookings', async (req, res) => {
   }
 });
 
-// GET /api/bookings - Retrieve all bookings (For Owner Portal)
+// GET /api/bookings - Retrieve all client bookings (Admin)
 app.get('/api/bookings', async (req, res) => {
   try {
     const bookings = await dbService.getBookings();
-    return res.json({
-      success: true,
-      count: bookings.length,
-      bookings
-    });
+    return res.json({ success: true, count: bookings.length, bookings });
   } catch (error) {
     console.error('Error fetching bookings:', error);
     return res.status(500).json({ error: 'Failed to retrieve bookings.' });
   }
 });
 
-// PATCH /api/bookings/:id - Update status of a booking
-app.patch('/api/bookings/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-    if (!status) {
-      return res.status(400).json({ error: 'Status is required.' });
-    }
-    const updated = await dbService.updateBookingStatus(id, status);
-    if (updated) {
-      return res.json({ success: true, message: `Booking ${id} status updated to ${status}.` });
-    } else {
-      return res.status(404).json({ error: 'Booking not found.' });
-    }
-  } catch (error) {
-    console.error('Error updating booking:', error);
-    return res.status(500).json({ error: 'Failed to update booking status.' });
-  }
-});
-
-// DELETE /api/bookings/:id - Cancel / delete a booking
+// DELETE /api/bookings/:id - Delete booking inquiry (Admin)
 app.delete('/api/bookings/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await dbService.deleteBooking(id);
-    if (deleted) {
-      return res.json({ success: true, message: `Booking ${id} deleted successfully.` });
-    } else {
-      return res.status(404).json({ error: 'Booking not found or already deleted.' });
-    }
+    await dbService.deleteBooking(id);
+    return res.json({ success: true, message: `Booking ${id} deleted.` });
   } catch (error) {
     console.error('Error deleting booking:', error);
     return res.status(500).json({ error: 'Failed to delete booking.' });
   }
 });
 
-// -------------------------------------------------------------
-// 2. SALON SETTINGS API (Address, Hours, Owner Info)
-// -------------------------------------------------------------
-
-// GET /api/settings - Fetch live salon configuration
-app.get('/api/settings', async (req, res) => {
+// PATCH /api/bookings/:id - Update booking status (e.g. Confirmed, Completed, Cancelled)
+app.patch('/api/bookings/:id', async (req, res) => {
   try {
-    const settings = await dbService.getSettings();
-    return res.json({ success: true, settings });
+    const { id } = req.params;
+    const { status } = req.body;
+    await dbService.updateBookingStatus(id, status);
+    return res.json({ success: true, message: `Booking status updated to ${status}.` });
   } catch (error) {
-    console.error('Error fetching settings:', error);
-    return res.status(500).json({ error: 'Failed to fetch salon settings.' });
-  }
-});
-
-// PUT /api/settings - Update salon settings (Owner only)
-app.put('/api/settings', async (req, res) => {
-  try {
-    const settingsData = req.body;
-    const updated = await dbService.updateSettings(settingsData);
-    return res.json({ success: true, message: 'Settings updated successfully.', settings: updated });
-  } catch (error) {
-    console.error('Error updating settings:', error);
-    return res.status(500).json({ error: 'Failed to update settings.' });
+    console.error('Error updating status:', error);
+    return res.status(500).json({ error: 'Failed to update status.' });
   }
 });
 
 // -------------------------------------------------------------
-// 3. OWNER AUTHENTICATION API
+// 3. SECURE ADMIN AUTHENTICATION
 // -------------------------------------------------------------
 
-// POST /api/auth/login - Verify owner passcode
-app.post('/api/auth/login', (req, res) => {
+// POST /api/auth/login - Verify admin passcode
+app.post('/api/auth/login', async (req, res) => {
   const { passcode } = req.body;
   if (!passcode) {
     return res.status(400).json({ error: 'Passcode is required.' });
   }
 
-  // Accepted Owner PINs
-  const validPins = ['eshivi', '1234', '2026', process.env.OWNER_PASSCODE].filter(Boolean);
-  const isValid = validPins.includes(passcode.toLowerCase()) || validPins.includes(passcode);
+  try {
+    const content = await dbService.getFullContent();
+    const storedPass = content?.site_settings?.adminPasscode || process.env.ADMIN_PASSCODE || 'eshvi';
 
-  if (isValid) {
-    return res.json({
-      success: true,
-      role: 'owner',
-      owner: 'Eshivi',
-      token: 'peach-auth-' + Buffer.from(Date.now().toString()).toString('base64'),
-      message: 'Welcome back, Eshivi.'
-    });
-  } else {
-    return res.status(401).json({ success: false, error: 'Invalid owner passcode.' });
+    // Allow configured passcode or fallback 'eshvi' / '1234'
+    const validCodes = [storedPass.toLowerCase(), 'eshvi', '1234'].filter(Boolean);
+    const isValid = validCodes.includes(passcode.toLowerCase()) || validCodes.includes(passcode);
+
+    if (isValid) {
+      const token = 'ps-auth-' + Buffer.from(Date.now().toString()).toString('base64');
+      return res.json({
+        success: true,
+        role: 'admin',
+        director: 'Eshvi',
+        token,
+        message: 'Authentication successful. Welcome, Eshvi.'
+      });
+    } else {
+      return res.status(401).json({ success: false, error: 'Incorrect passcode. Please try again.' });
+    }
+  } catch (error) {
+    return res.status(500).json({ error: 'Authentication service error.' });
+  }
+});
+
+// POST /api/auth/change-password - Change admin passcode
+app.post('/api/auth/change-password', async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!newPassword || newPassword.length < 4) {
+    return res.status(400).json({ error: 'New passcode must be at least 4 characters.' });
+  }
+
+  try {
+    const content = await dbService.getFullContent();
+    const currentStored = content?.site_settings?.adminPasscode || 'eshvi';
+
+    if (currentPassword && currentPassword !== currentStored && currentPassword !== 'eshvi' && currentPassword !== '1234') {
+      return res.status(401).json({ error: 'Current passcode does not match.' });
+    }
+
+    content.site_settings.adminPasscode = newPassword;
+    await dbService.updateEntity('site_settings', content.site_settings);
+
+    return res.json({ success: true, message: 'Passcode updated successfully.' });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to update passcode.' });
+  }
+});
+
+// -------------------------------------------------------------
+// 4. MEDIA UPLOAD API (Images & Media)
+// -------------------------------------------------------------
+
+// POST /api/upload - Handle base64 image or media upload
+app.post('/api/upload', (req, res) => {
+  try {
+    const { imageBase64, fileName } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'No image data provided.' });
+    }
+
+    // Extract base64 format and data
+    const matches = imageBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      // If it's already a URL or standard path, return it directly
+      return res.json({ success: true, url: imageBase64 });
+    }
+
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+    const ext = mimeType.split('/')[1] || 'jpg';
+    const cleanFileName = (fileName ? fileName.replace(/[^a-zA-Z0-9_-]/g, '') : 'img') + '-' + Date.now() + '.' + ext;
+    const filePath = path.join(uploadDir, cleanFileName);
+
+    fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+
+    const publicUrl = `/uploads/${cleanFileName}`;
+    return res.json({ success: true, url: publicUrl, fileName: cleanFileName });
+  } catch (error) {
+    console.error('Error saving upload:', error);
+    return res.status(500).json({ error: 'Failed to process file upload.' });
   }
 });
 
 // Start Express Server
 app.listen(PORT, () => {
-  console.log(`\n👑 Peach Salon & Atelier Backend Server running on http://localhost:${PORT}`);
-  console.log(`📡 API Endpoints live at http://localhost:${PORT}/api/bookings and /api/settings`);
-  console.log(`🔒 Database Engine: ${dbService.isCloudFirebase() ? 'Firebase Cloud Firestore' : 'High-Speed File & Memory Engine'}\n`);
+  console.log(`\n🌸 PEACH SALON — Bridal Makeup & Hair Studio Backend running on http://localhost:${PORT}`);
+  console.log(`📍 Studio: Near New SBI Branch, Public Inter College, Manauri, Prayagraj (212208)`);
+  console.log(`👑 Director: Eshvi | Opening Hours: 10:00 AM – 7:00 PM (All 7 Days)\n`);
 });

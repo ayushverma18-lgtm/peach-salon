@@ -1,152 +1,258 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, Key, Save, Trash2, CheckCircle2, ShieldAlert, Calendar, Clock, MapPin, Phone, User, Plus, Sparkles, RefreshCw, Eye, Loader2, Database } from 'lucide-react';
+import { 
+  Lock, X, Save, Plus, Trash2, Edit3, Image as ImageIcon, Video, CheckCircle2, 
+  AlertCircle, LayoutDashboard, Settings, Home, User, Sparkles, Scissors, 
+  PlusCircle, Calendar, Shield, Upload, Eye, EyeOff, RefreshCw, Phone, MessageSquare
+} from 'lucide-react';
 import { api } from '../services/api';
 
 export default function AdminPortal({
   isOpen,
   onClose,
-  salonInfo,
-  onUpdateSalonInfo,
-  bookings,
-  onDeleteBooking,
-  onClearAllBookings,
-  services,
-  onUpdateServicePrice,
-  products,
-  onUpdateProductPrice
+  fullContent,
+  onUpdateFullContent
 }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passcode, setPasscode] = useState('');
-  const [authError, setAuthError] = useState(false);
-  const [activeTab, setActiveTab] = useState('bookings'); // 'bookings' | 'settings' | 'services' | 'products'
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
-
-  // Form State for Salon Settings
-  const [formData, setFormData] = useState({
-    name: salonInfo?.name || "Peach Salon & Atelier",
-    owner: salonInfo?.owner || "Eshivi",
-    ownerRole: salonInfo?.ownerRole || "Founder & Creative Director",
-    address: salonInfo?.address || "GT Road, Manauri, Prayagraj, Uttar Pradesh 212212",
-    locationShort: salonInfo?.locationShort || "Manauri, Prayagraj",
-    phone: salonInfo?.phone || "+91 98390 12345",
-    whatsapp: salonInfo?.whatsapp || "+91 98390 12345",
-    email: salonInfo?.email || "eshivi@peachsalon.in",
-    hours: salonInfo?.hours || "Monday – Saturday, 10:00 – 18:00 (Closed Sundays)",
-    timingShort: salonInfo?.timingShort || "10:00 AM – 6:00 PM",
-    closedDay: salonInfo?.closedDay || "Closed on Sundays",
-    status: salonInfo?.status || "Atelier Open — Manauri, Prayagraj & VIP Concierge",
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return sessionStorage.getItem('ps_admin_auth') === 'true';
   });
 
+  const [passcode, setPasscode] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+
+  // Active Admin Sidebar Tab
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Working State for Admin edits (Cloned from fullContent)
+  const [content, setContent] = useState(fullContent || {});
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  // Password Change State
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passChangeSuccess, setPassChangeSuccess] = useState(false);
+
+  // Sync content when fullContent changes from parent
   useEffect(() => {
-    if (salonInfo) {
-      setFormData({
-        name: salonInfo.name,
-        owner: salonInfo.owner,
-        ownerRole: salonInfo.ownerRole,
-        address: salonInfo.address,
-        locationShort: salonInfo.locationShort,
-        phone: salonInfo.phone,
-        whatsapp: salonInfo.whatsapp,
-        email: salonInfo.email,
-        hours: salonInfo.hours,
-        timingShort: salonInfo.timingShort,
-        closedDay: salonInfo.closedDay,
-        status: salonInfo.status,
-      });
+    if (fullContent) {
+      setContent(JSON.parse(JSON.stringify(fullContent)));
     }
-  }, [salonInfo]);
+  }, [fullContent]);
 
   if (!isOpen) return null;
 
+  // 1. Admin Authentication Handler
   const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      // 1. Check custom passcode from saved salon settings if set
-      const activeCustomPin = salonInfo?.customPasscode || formData?.customPasscode;
-      if (activeCustomPin && passcode === activeCustomPin) {
-        setIsAuthenticated(true);
-        setAuthError(false);
-        setLoading(false);
-        return;
-      }
+    setAuthError('');
+    setAuthLoading(true);
 
-      const res = await api.ownerLogin(passcode);
+    try {
+      const res = await api.adminLogin(passcode);
       if (res.success) {
         setIsAuthenticated(true);
-        setAuthError(false);
+        sessionStorage.setItem('ps_admin_auth', 'true');
+        setPasscode('');
       } else {
-        setAuthError(true);
+        setAuthError(res.error || 'Incorrect passcode. Please try again.');
       }
     } catch (err) {
-      // Fallback default pins if no custom pin set
-      const defaultPins = ['eshivi', '1234', '2026'];
-      if (defaultPins.includes(passcode.toLowerCase()) || defaultPins.includes(passcode)) {
-        setIsAuthenticated(true);
-        setAuthError(false);
-      } else {
-        setAuthError(true);
-      }
+      setAuthError('Authentication failed. Please verify server connection.');
     } finally {
-      setLoading(false);
+      setAuthLoading(false);
     }
   };
 
-  const handleSaveSettings = async (e) => {
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem('ps_admin_auth');
+  };
+
+  // 2. Global Save Handler (Updates full website & database)
+  const handleSaveAll = async () => {
+    setSaving(true);
+    setSaveError('');
+    try {
+      const res = await api.updateContent(content);
+      if (res.success) {
+        setSaveSuccess(true);
+        if (onUpdateFullContent) {
+          onUpdateFullContent(content);
+        }
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        setSaveError(res.error || 'Failed to save changes.');
+      }
+    } catch (err) {
+      setSaveError(err.message || 'Error updating content.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 3. Image Upload Helper
+  const handleFileUpload = (e, callback) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check size limit (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size exceeds 10MB limit.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Data = event.target?.result;
+      if (base64Data) {
+        try {
+          const res = await api.uploadMedia(base64Data, file.name);
+          if (res.success && res.url) {
+            callback(res.url);
+          } else {
+            callback(base64Data);
+          }
+        } catch (err) {
+          callback(base64Data);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // 4. Password Change Handler
+  const handleChangePassword = async (e) => {
     e.preventDefault();
-    setIsCloudSyncing(true);
+    if (!newPassword || newPassword.length < 4) {
+      alert('New password must be at least 4 characters.');
+      return;
+    }
+
     try {
-      await api.updateSettings(formData);
-      onUpdateSalonInfo(formData);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2500);
+      const res = await api.changePassword(currentPassword, newPassword);
+      if (res.success) {
+        setPassChangeSuccess(true);
+        setCurrentPassword('');
+        setNewPassword('');
+        setTimeout(() => setPassChangeSuccess(false), 3000);
+      } else {
+        alert(res.error || 'Failed to change password.');
+      }
     } catch (err) {
-      console.error('Error saving settings to cloud:', err);
-      onUpdateSalonInfo(formData);
-    } finally {
-      setIsCloudSyncing(false);
+      alert('Error updating password.');
     }
   };
 
-  const handleDelete = async (bookingId) => {
-    try {
-      await api.deleteBooking(bookingId);
-      onDeleteBooking(bookingId);
-    } catch (err) {
-      onDeleteBooking(bookingId);
+  // 5. Booking Action Handlers
+  const handleBookingStatus = async (id, status) => {
+    await api.updateBookingStatus(id, status);
+    setContent(prev => ({
+      ...prev,
+      bookings: (prev.bookings || []).map(b => b.id === id ? { ...b, status } : b)
+    }));
+  };
+
+  const handleDeleteBooking = async (id) => {
+    if (window.confirm('Delete this booking inquiry permanently?')) {
+      await api.deleteBooking(id);
+      setContent(prev => ({
+        ...prev,
+        bookings: (prev.bookings || []).filter(b => b.id !== id)
+      }));
     }
   };
+
+  // Sub-tabs list
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'settings', label: 'Business & Info', icon: Settings },
+    { id: 'home', label: 'Home & Media', icon: Home },
+    { id: 'about', label: 'About Eshvi', icon: User },
+    { id: 'bridal', label: 'Bridal Packages', icon: Sparkles },
+    { id: 'makeup', label: 'Makeup Services', icon: Sparkles },
+    { id: 'hair', label: 'Hair Services', icon: Scissors },
+    { id: 'addons', label: 'Add-Ons', icon: PlusCircle },
+    { id: 'gallery', label: 'Client Gallery', icon: ImageIcon },
+    { id: 'bookings', label: `Bookings (${content.bookings?.length || 0})`, icon: Calendar },
+    { id: 'security', label: 'Passcode & Security', icon: Shield },
+  ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#070605]/92 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-[#14100E] text-[#FBF3EC] rounded-2xl max-w-4xl w-full border border-[#D4AF37]/50 shadow-2xl relative p-6 sm:p-8 my-8 max-h-[92vh] overflow-y-auto futuristic-card">
+    <div className="fixed inset-0 z-50 bg-[#2D2424]/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+      <div className="bg-white text-[#2D2424] rounded-2xl max-w-6xl w-full border border-[#EFE3DF] shadow-2xl relative my-4 max-h-[95vh] flex flex-col overflow-hidden">
         
-        {/* Close button */}
-        <button 
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-[#D1C2BA] hover:text-[#FBF3EC] rounded-full hover:bg-white/10 transition-colors cursor-pointer"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* Top Header Bar */}
+        <div className="px-6 py-4 border-b border-[#EFE3DF] flex items-center justify-between bg-[#FDF3EF]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-[#C4727F] text-white flex items-center justify-center font-bold">
+              PS
+            </div>
+            <div>
+              <h2 className="font-serif text-lg sm:text-xl font-bold text-[#2D2424]">
+                Peach Salon Management Dashboard
+              </h2>
+              <span className="text-[11px] text-[#6E5E5C] font-sans">
+                Director: Eshvi &bull; Manauri, Prayagraj Studio
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {isAuthenticated && (
+              <button
+                onClick={handleSaveAll}
+                disabled={saving}
+                className="btn-primary px-4 py-2 rounded-lg text-xs font-sans font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                <span>{saving ? 'Saving...' : 'Save Live Changes'}</span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-2 text-[#6E5E5C] hover:text-[#2D2424] rounded-lg hover:bg-white/80 transition-colors cursor-pointer"
+              title="Close Admin Panel"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Status Notification Banners */}
+        {saveSuccess && (
+          <div className="bg-green-50 border-b border-green-200 px-6 py-2.5 text-xs text-green-800 font-sans font-medium flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+            <span>All changes have been saved and synchronized with your live website!</span>
+          </div>
+        )}
+        {saveError && (
+          <div className="bg-red-50 border-b border-red-200 px-6 py-2.5 text-xs text-red-800 font-sans font-medium flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <span>{saveError}</span>
+          </div>
+        )}
 
         {!isAuthenticated ? (
-          /* LOGIN SCREEN FOR OWNER (ESHIVI) */
-          <div className="text-center py-10 space-y-6 max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-full bg-[#1A1412] text-[#EE9A70] flex items-center justify-center mx-auto border border-[#D4AF37]/40 shadow-xl">
+          /* ========================================================= */
+          /* 1. SECURE ADMIN LOGIN SCREEN (PROTECTED ROUTE)             */
+          /* ========================================================= */
+          <div className="p-8 sm:p-14 max-w-md mx-auto w-full text-center space-y-6 my-auto">
+            <div className="w-16 h-16 rounded-full bg-[#FDF1ED] text-[#C4727F] flex items-center justify-center mx-auto shadow-xs">
               <Lock className="w-8 h-8" />
             </div>
 
             <div>
-              <span className="text-[10px] font-futuristic uppercase tracking-[0.25em] text-[#D4AF37] font-bold block">
-                Owner Access &amp; Cloud Database
+              <span className="text-xs font-sans uppercase tracking-wider font-bold text-[#C4727F] block">
+                Authorized Access Only
               </span>
-              <h3 className="font-serif text-3xl font-medium text-[#FBF3EC] mt-1">
-                Eshivi's Atelier Portal
+              <h3 className="font-serif text-2xl font-bold text-[#2D2424] mt-1">
+                Eshvi's Admin Portal
               </h3>
-              <p className="text-xs text-[#D1C2BA] mt-2 leading-relaxed font-sans">
-                Private management cockpit connected to Firebase Firestore &amp; Express API.
+              <p className="text-xs sm:text-sm text-[#6E5E5C] font-sans mt-1.5">
+                Enter your secret studio passcode to edit packages, services, gallery, and client bookings.
               </p>
             </div>
 
@@ -156,369 +262,1302 @@ export default function AdminPortal({
                   type="password"
                   value={passcode}
                   onChange={(e) => setPasscode(e.target.value)}
-                  placeholder="Enter Owner PIN (e.g. eshivi or 1234)"
-                  className="w-full p-3 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-sm text-[#FBF3EC] text-center tracking-[0.2em] font-futuristic focus:outline-none focus:border-[#EE9A70]"
+                  placeholder="Enter Secret Passcode"
+                  className="w-full p-3 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-sm text-center tracking-[0.2em] font-sans font-bold focus:outline-none focus:border-[#C4727F]"
                   required
+                  autoFocus
                 />
                 {authError && (
-                  <span className="text-xs text-red-400 block mt-1.5 font-futuristic font-medium">
-                    Incorrect Passcode. Try 'eshivi' or '1234'.
+                  <span className="text-xs text-red-600 block mt-2 font-sans font-medium">
+                    {authError}
                   </span>
                 )}
               </div>
 
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full py-3.5 rounded-sm bg-[#D4AF37] hover:bg-[#F3E5AB] text-[#0A0807] font-futuristic font-bold text-xs uppercase tracking-[0.15em] shadow-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+                disabled={authLoading}
+                className="w-full btn-primary py-3.5 rounded-lg text-xs font-sans font-bold uppercase tracking-wider shadow-xs cursor-pointer flex items-center justify-center gap-2"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {loading ? 'Authenticating...' : 'Unlock Management Dashboard'}
+                {authLoading ? 'Verifying...' : 'Unlock Studio Dashboard'}
               </button>
             </form>
-
-
           </div>
         ) : (
-          /* AUTHENTICATED MANAGEMENT DASHBOARD */
-          <div className="space-y-6">
+          /* ========================================================= */
+          /* 2. AUTHENTICATED DASHBOARD WITH SIDEBAR & SECTIONS        */
+          /* ========================================================= */
+          <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
             
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#D4AF37]/30 gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-xs font-futuristic uppercase tracking-[0.2em] text-[#EE9A70] font-bold">
-                    Authenticated as {salonInfo?.owner || 'Eshivi'}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] bg-[#0A0807] text-[#D4AF37] px-2 py-0.5 rounded border border-[#D4AF37]/30 font-futuristic">
-                    <Database className="w-3 h-3" /> Firebase / Node.js
-                  </span>
-                </div>
-                <h3 className="font-serif text-2xl sm:text-3xl font-medium text-[#FBF3EC] mt-0.5">
-                  Atelier Control Center
-                </h3>
-              </div>
-
-              {/* Navigation Tabs */}
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { id: 'bookings', label: `Client Bookings (${bookings?.length || 0})` },
-                  { id: 'settings', label: 'Salon Details & Hours' },
-                  { id: 'services', label: 'Pricing & Services' },
-                  { id: 'products', label: 'Apothecary' },
-                ].map(tab => (
+            {/* Sidebar Navigation */}
+            <aside className="w-full md:w-64 bg-[#FFF9F7] border-b md:border-b-0 md:border-r border-[#EFE3DF] p-3 space-y-1 overflow-y-auto shrink-0">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const active = activeTab === tab.id;
+                return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-futuristic font-semibold uppercase tracking-wider transition-all cursor-pointer ${
-                      activeTab === tab.id
-                        ? 'bg-[#EE9A70] text-[#0A0807] font-bold shadow-md'
-                        : 'bg-[#1A1412] text-[#D1C2BA] hover:bg-white/10 border border-[#D4AF37]/25'
+                    className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-xs font-sans font-semibold transition-colors cursor-pointer text-left ${
+                      active 
+                        ? 'bg-[#C4727F] text-white shadow-xs' 
+                        : 'text-[#5C4E4D] hover:bg-[#FDF3EF]'
                     }`}
                   >
-                    {tab.label}
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span>{tab.label}</span>
                   </button>
-                ))}
+                );
+              })}
+
+              <div className="pt-4 border-t border-[#EFE3DF]">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-sans text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Lock Dashboard</span>
+                </button>
               </div>
-            </div>
+            </aside>
 
-            {/* TAB 1: CLIENT BOOKINGS & APPOINTMENT MANAGER */}
-            {activeTab === 'bookings' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
+            {/* Main Tab Content Area */}
+            <main className="flex-1 p-6 sm:p-8 overflow-y-auto space-y-6 bg-white">
+              
+              {/* TAB 1: DASHBOARD OVERVIEW */}
+              {activeTab === 'dashboard' && (
+                <div className="space-y-6">
                   <div>
-                    <h4 className="font-serif text-xl font-medium text-[#FBF3EC]">
-                      Client Appointment Requests
+                    <h3 className="font-serif text-2xl font-bold text-[#2D2424]">
+                      Studio Overview
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#6E5E5C] font-sans">
+                      Welcome to your website management cockpit. You can update any text, package, or image.
+                    </p>
+                  </div>
+
+                  {/* Summary Metric Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="p-4 rounded-xl bg-[#FFF9F7] border border-[#EFE3DF]">
+                      <span className="text-[11px] font-sans uppercase font-bold text-[#C4727F] block">
+                        Client Bookings
+                      </span>
+                      <span className="font-serif text-3xl font-bold text-[#2D2424] mt-1 block">
+                        {content.bookings?.length || 0}
+                      </span>
+                      <span className="text-[11px] text-[#8E7C7A]">Inquiries received</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-[#FFF9F7] border border-[#EFE3DF]">
+                      <span className="text-[11px] font-sans uppercase font-bold text-[#C4727F] block">
+                        Bridal Packages
+                      </span>
+                      <span className="font-serif text-3xl font-bold text-[#2D2424] mt-1 block">
+                        {content.bridal_packages?.length || 3}
+                      </span>
+                      <span className="text-[11px] text-[#8E7C7A]">Classic, HD, Airbrush</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-[#FFF9F7] border border-[#EFE3DF]">
+                      <span className="text-[11px] font-sans uppercase font-bold text-[#C4727F] block">
+                        Makeup &amp; Hair Services
+                      </span>
+                      <span className="font-serif text-3xl font-bold text-[#2D2424] mt-1 block">
+                        {(content.makeup_services?.length || 6) + (content.hair_services?.length || 6)}
+                      </span>
+                      <span className="text-[11px] text-[#8E7C7A]">Active service listings</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-[#FFF9F7] border border-[#EFE3DF]">
+                      <span className="text-[11px] font-sans uppercase font-bold text-[#C4727F] block">
+                        Gallery Showcase
+                      </span>
+                      <span className="font-serif text-3xl font-bold text-[#2D2424] mt-1 block">
+                        {content.gallery?.length || 6}
+                      </span>
+                      <span className="text-[11px] text-[#8E7C7A]">Real client photos</span>
+                    </div>
+                  </div>
+
+                  {/* Quick Shortcuts */}
+                  <div className="p-5 rounded-2xl bg-[#FDF3EF] border border-[#E8CAC4] space-y-3">
+                    <h4 className="font-serif text-base font-bold text-[#2D2424]">
+                      Quick Studio Actions
                     </h4>
-                    <p className="text-xs text-[#D1C2BA] font-sans">
-                      Stored in Cloud Database &amp; Local Cache. Manage or cancel appointments in real time.
-                    </p>
-                  </div>
-
-                  {bookings && bookings.length > 0 && (
-                    <button
-                      onClick={onClearAllBookings}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-red-950/60 hover:bg-red-900 border border-red-500/40 text-xs font-futuristic text-red-200 transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Clear All Bookings
-                    </button>
-                  )}
-                </div>
-
-                {!bookings || bookings.length === 0 ? (
-                  <div className="text-center py-12 bg-[#1A1412] rounded-xl border border-white/10 space-y-2">
-                    <Calendar className="w-10 h-10 text-[#D4AF37] mx-auto opacity-70" />
-                    <h5 className="font-serif text-lg text-[#FBF3EC]">No active appointment requests</h5>
-                    <p className="text-xs text-[#D1C2BA]/70 font-sans">
-                      When customers submit the "Reserve a Chair" form, their appointment will appear here instantly.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {bookings.map((b) => (
-                      <div 
-                        key={b.id}
-                        className="bg-[#1A1412] border border-[#D4AF37]/30 rounded-xl p-4.5 space-y-3 relative group hover:border-[#EE9A70] transition-colors shadow-lg futuristic-card"
+                    <div className="flex flex-wrap gap-2.5">
+                      <button
+                        onClick={() => setActiveTab('bridal')}
+                        className="btn-secondary px-4 py-2 rounded-lg text-xs font-sans font-semibold cursor-pointer"
                       >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="text-[10px] font-futuristic uppercase tracking-wider text-[#EE9A70] font-bold block">
-                              ID: {b.id} · {b.createdAt ? new Date(b.createdAt).toLocaleDateString() : 'New Request'}
-                            </span>
-                            <h5 className="font-serif text-lg font-bold text-[#FBF3EC]">
-                              {b.clientName || 'Anonymous Guest'}
-                            </h5>
-                            <span className="text-xs text-[#D4AF37] font-futuristic font-semibold block">
-                              📞 {b.phone}
-                            </span>
+                        Edit Bridal Prices
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('gallery')}
+                        className="btn-secondary px-4 py-2 rounded-lg text-xs font-sans font-semibold cursor-pointer"
+                      >
+                        Upload Real Photos
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('bookings')}
+                        className="btn-secondary px-4 py-2 rounded-lg text-xs font-sans font-semibold cursor-pointer"
+                      >
+                        View Appointment Inquiries
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('settings')}
+                        className="btn-secondary px-4 py-2 rounded-lg text-xs font-sans font-semibold cursor-pointer"
+                      >
+                        Update Phone &amp; Address
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: BUSINESS & SITE SETTINGS */}
+              {activeTab === 'settings' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="font-serif text-2xl font-bold text-[#2D2424]">
+                      Business &amp; Studio Information
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#6E5E5C] font-sans">
+                      Updates address, phone numbers, opening hours, and branding across the entire site.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Brand Name
+                      </label>
+                      <input
+                        type="text"
+                        value={content.site_settings?.name || ''}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          site_settings: { ...prev.site_settings, name: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Subtitle
+                      </label>
+                      <input
+                        type="text"
+                        value={content.site_settings?.subtitle || ''}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          site_settings: { ...prev.site_settings, subtitle: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Director Name
+                      </label>
+                      <input
+                        type="text"
+                        value={content.site_settings?.director || 'Eshvi'}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          site_settings: { ...prev.site_settings, director: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Director Role
+                      </label>
+                      <input
+                        type="text"
+                        value={content.site_settings?.directorRole || ''}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          site_settings: { ...prev.site_settings, directorRole: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Full Address (Exact Location in Manauri)
+                      </label>
+                      <input
+                        type="text"
+                        value={content.site_settings?.address || ''}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          site_settings: { ...prev.site_settings, address: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Opening Hours
+                      </label>
+                      <input
+                        type="text"
+                        value={content.site_settings?.hours || ''}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          site_settings: { ...prev.site_settings, hours: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Phone &amp; WhatsApp
+                      </label>
+                      <input
+                        type="text"
+                        value={content.site_settings?.phone || ''}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          site_settings: { ...prev.site_settings, phone: e.target.value, whatsapp: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Contact Email
+                      </label>
+                      <input
+                        type="email"
+                        value={content.site_settings?.email || ''}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          site_settings: { ...prev.site_settings, email: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Header Live Status Message
+                      </label>
+                      <input
+                        type="text"
+                        value={content.site_settings?.statusMessage || ''}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          site_settings: { ...prev.site_settings, statusMessage: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: HOME & HERO MEDIA */}
+              {activeTab === 'home' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="font-serif text-2xl font-bold text-[#2D2424]">
+                      Home Page &amp; Showcase Media
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#6E5E5C] font-sans">
+                      Configure your main title, description, real 10-second video URL, and bridal poster.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Hero Main Heading
+                      </label>
+                      <input
+                        type="text"
+                        value={content.home_settings?.heroHeading || ''}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          home_settings: { ...prev.home_settings, heroHeading: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Hero Description / Introduction
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={content.home_settings?.heroSubtitle || ''}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          home_settings: { ...prev.home_settings, heroSubtitle: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                          Primary CTA Button Text
+                        </label>
+                        <input
+                          type="text"
+                          value={content.home_settings?.heroCtaText || ''}
+                          onChange={(e) => setContent(prev => ({
+                            ...prev,
+                            home_settings: { ...prev.home_settings, heroCtaText: e.target.value }
+                          }))}
+                          className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                          Secondary CTA Button Text
+                        </label>
+                        <input
+                          type="text"
+                          value={content.home_settings?.heroSecondaryCta || ''}
+                          onChange={(e) => setContent(prev => ({
+                            ...prev,
+                            home_settings: { ...prev.home_settings, heroSecondaryCta: e.target.value }
+                          }))}
+                          className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Video and Image Paths */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                      <div className="p-4 rounded-xl bg-[#FFF9F7] border border-[#EFE3DF] space-y-2">
+                        <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase">
+                          🎥 Real 10-Second Video Source
+                        </label>
+                        <input
+                          type="text"
+                          value={content.home_settings?.videoUrl || ''}
+                          onChange={(e) => setContent(prev => ({
+                            ...prev,
+                            home_settings: { ...prev.home_settings, videoUrl: e.target.value }
+                          }))}
+                          placeholder="/videos/peach-salon.mp4"
+                          className="w-full p-2 rounded bg-white border border-[#EFE3DF] text-xs"
+                        />
+                        <span className="text-[11px] text-[#8E7C7A] block">
+                          Place your video in <code>/public/videos/peach-salon.mp4</code> or enter URL.
+                        </span>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-[#FFF9F7] border border-[#EFE3DF] space-y-2">
+                        <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase">
+                          🖼️ Real Bridal Poster / Hero Photo
+                        </label>
+                        <input
+                          type="text"
+                          value={content.home_settings?.heroImage || ''}
+                          onChange={(e) => setContent(prev => ({
+                            ...prev,
+                            home_settings: { ...prev.home_settings, heroImage: e.target.value }
+                          }))}
+                          placeholder="/images/bridal.jpg"
+                          className="w-full p-2 rounded bg-white border border-[#EFE3DF] text-xs"
+                        />
+                        <div className="flex items-center gap-2">
+                          <label className="btn-secondary px-3 py-1 rounded text-xs font-sans font-medium cursor-pointer inline-flex items-center gap-1">
+                            <Upload className="w-3 h-3" />
+                            <span>Upload Poster Image</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleFileUpload(e, (url) => {
+                                setContent(prev => ({
+                                  ...prev,
+                                  home_settings: { ...prev.home_settings, heroImage: url }
+                                }));
+                              })}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: ABOUT ESHVI */}
+              {activeTab === 'about' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="font-serif text-2xl font-bold text-[#2D2424]">
+                      About Section &amp; Director Bio
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#6E5E5C] font-sans">
+                      Edit the narrative, philosophy, and director bio for Eshvi.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        About Heading
+                      </label>
+                      <input
+                        type="text"
+                        value={content.about_settings?.heading || ''}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          about_settings: { ...prev.about_settings, heading: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Main About Description
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={content.about_settings?.description || ''}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          about_settings: { ...prev.about_settings, description: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Director Eshvi's Personal Bio
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={content.about_settings?.directorBio || ''}
+                        onChange={(e) => setContent(prev => ({
+                          ...prev,
+                          about_settings: { ...prev.about_settings, directorBio: e.target.value }
+                        }))}
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        About Studio Photo Path
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={content.about_settings?.image || ''}
+                          onChange={(e) => setContent(prev => ({
+                            ...prev,
+                            about_settings: { ...prev.about_settings, image: e.target.value }
+                          }))}
+                          className="flex-1 p-2 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs"
+                        />
+                        <label className="btn-secondary px-3 py-2 rounded-lg text-xs font-sans font-medium cursor-pointer inline-flex items-center gap-1">
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>Upload Photo</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleFileUpload(e, (url) => {
+                              setContent(prev => ({
+                                ...prev,
+                                about_settings: { ...prev.about_settings, image: url }
+                              }));
+                            })}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 5: BRIDAL PACKAGES */}
+              {activeTab === 'bridal' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-serif text-2xl font-bold text-[#2D2424]">
+                        Bridal Makeup Packages (Classic, HD, Airbrush)
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#6E5E5C] font-sans">
+                        Customize package names, exact prices, descriptions, and photos.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const newPkg = {
+                          id: 'bridal-' + Date.now(),
+                          name: 'Custom Bridal Package',
+                          price: 18000,
+                          description: 'Custom bridal package description.',
+                          image: '/images/bridal.jpg',
+                          active: true,
+                          order: (content.bridal_packages?.length || 0) + 1
+                        };
+                        setContent(prev => ({
+                          ...prev,
+                          bridal_packages: [...(prev.bridal_packages || []), newPkg]
+                        }));
+                      }}
+                      className="btn-secondary px-3 py-1.5 rounded-lg text-xs font-sans font-semibold inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Package</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {(content.bridal_packages || []).map((pkg, index) => (
+                      <div key={pkg.id || index} className="p-5 rounded-xl border border-[#EFE3DF] bg-[#FFF9F7] space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[11px] font-sans font-bold text-[#2D2424] uppercase mb-0.5">
+                                Package Name
+                              </label>
+                              <input
+                                type="text"
+                                value={pkg.name}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setContent(prev => {
+                                    const pkgs = [...(prev.bridal_packages || [])];
+                                    pkgs[index].name = val;
+                                    return { ...prev, bridal_packages: pkgs };
+                                  });
+                                }}
+                                className="w-full p-2 rounded bg-white border border-[#EFE3DF] text-xs font-bold"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-sans font-bold text-[#2D2424] uppercase mb-0.5">
+                                Price (₹)
+                              </label>
+                              <input
+                                type="number"
+                                value={pkg.price || 0}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value) || 0;
+                                  setContent(prev => {
+                                    const pkgs = [...(prev.bridal_packages || [])];
+                                    pkgs[index].price = val;
+                                    return { ...prev, bridal_packages: pkgs };
+                                  });
+                                }}
+                                className="w-full p-2 rounded bg-white border border-[#EFE3DF] text-xs font-bold text-[#C4727F]"
+                              />
+                            </div>
                           </div>
 
                           <button
-                            onClick={() => handleDelete(b.id)}
-                            className="p-1.5 rounded-lg bg-red-950/50 hover:bg-red-900 text-red-300 hover:text-red-100 border border-red-500/30 transition-colors cursor-pointer"
-                            title="Delete this appointment"
+                            onClick={() => {
+                              if (window.confirm(`Delete ${pkg.name}?`)) {
+                                setContent(prev => ({
+                                  ...prev,
+                                  bridal_packages: prev.bridal_packages.filter((_, i) => i !== index)
+                                }));
+                              }
+                            }}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            title="Delete Package"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
 
-                        <div className="space-y-1 text-xs text-[#D1C2BA] bg-[#0A0807] p-2.5 rounded-lg border border-white/5 font-sans">
-                          <div className="flex justify-between">
-                            <span className="text-[#D1C2BA]/70">Service:</span>
-                            <span className="font-semibold text-[#F3E5AB] truncate max-w-[200px]">{b.service}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-[#D1C2BA]/70">Date &amp; Time:</span>
-                            <span className="text-[#FBF3EC] font-futuristic">{b.date} at {b.time}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-[#D1C2BA]/70">Stylist:</span>
-                            <span className="text-[#FBF3EC]">{b.stylist}</span>
-                          </div>
-                          {b.notes && (
-                            <div className="pt-1 text-[11px] text-[#EE9A70] italic">
-                              Note: "{b.notes}"
-                            </div>
-                          )}
+                        <div>
+                          <label className="block text-[11px] font-sans font-bold text-[#2D2424] uppercase mb-0.5">
+                            Package Description
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={pkg.description || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setContent(prev => {
+                                const pkgs = [...(prev.bridal_packages || [])];
+                                pkgs[index].description = val;
+                                return { ...prev, bridal_packages: pkgs };
+                              });
+                            }}
+                            className="w-full p-2 rounded bg-white border border-[#EFE3DF] text-xs"
+                          />
+                        </div>
+
+                        {/* Image for Package */}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={pkg.image || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setContent(prev => {
+                                const pkgs = [...(prev.bridal_packages || [])];
+                                pkgs[index].image = val;
+                                return { ...prev, bridal_packages: pkgs };
+                              });
+                            }}
+                            placeholder="/images/bridal.jpg"
+                            className="flex-1 p-1.5 rounded bg-white border border-[#EFE3DF] text-xs"
+                          />
+                          <label className="btn-secondary px-2.5 py-1.5 rounded text-xs font-sans font-medium cursor-pointer inline-flex items-center gap-1">
+                            <Upload className="w-3 h-3" />
+                            <span>Photo</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleFileUpload(e, (url) => {
+                                setContent(prev => {
+                                  const pkgs = [...(prev.bridal_packages || [])];
+                                  pkgs[index].image = url;
+                                  return { ...prev, bridal_packages: pkgs };
+                                });
+                              })}
+                            />
+                          </label>
                         </div>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
 
-            {/* TAB 2: SALON DETAILS & HOURS SETTINGS */}
-            {activeTab === 'settings' && (
-              <form onSubmit={handleSaveSettings} className="space-y-4">
-                <div className="flex items-center justify-between">
+              {/* TAB 6: MAKEUP SERVICES */}
+              {activeTab === 'makeup' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-serif text-2xl font-bold text-[#2D2424]">
+                        Makeup Services (Natural, Velvet, Party, Cocktail)
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#6E5E5C] font-sans">
+                        Edit prices or descriptions. Leave price empty to display "Price on request".
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const newSrv = {
+                          id: 'mu-' + Date.now(),
+                          name: 'New Makeup Service',
+                          price: null,
+                          description: 'Custom makeup service description.',
+                          category: 'Makeup',
+                          active: true,
+                          order: (content.makeup_services?.length || 0) + 1
+                        };
+                        setContent(prev => ({
+                          ...prev,
+                          makeup_services: [...(prev.makeup_services || []), newSrv]
+                        }));
+                      }}
+                      className="btn-secondary px-3 py-1.5 rounded-lg text-xs font-sans font-semibold inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Makeup Service</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {(content.makeup_services || []).map((srv, index) => (
+                      <div key={srv.id || index} className="p-4 rounded-xl border border-[#EFE3DF] bg-[#FFF9F7] space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              value={srv.name}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setContent(prev => {
+                                  const list = [...(prev.makeup_services || [])];
+                                  list[index].name = val;
+                                  return { ...prev, makeup_services: list };
+                                });
+                              }}
+                              className="p-2 rounded bg-white border border-[#EFE3DF] text-xs font-bold"
+                            />
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-[#6E5E5C]">₹</span>
+                              <input
+                                type="number"
+                                value={srv.price !== null ? srv.price : ''}
+                                placeholder="Leave blank for 'Price on request'"
+                                onChange={(e) => {
+                                  const val = e.target.value === '' ? null : parseInt(e.target.value) || 0;
+                                  setContent(prev => {
+                                    const list = [...(prev.makeup_services || [])];
+                                    list[index].price = val;
+                                    return { ...prev, makeup_services: list };
+                                  });
+                                }}
+                                className="w-full p-2 rounded bg-white border border-[#EFE3DF] text-xs font-bold text-[#C4727F]"
+                              />
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Delete ${srv.name}?`)) {
+                                setContent(prev => ({
+                                  ...prev,
+                                  makeup_services: prev.makeup_services.filter((_, i) => i !== index)
+                                }));
+                              }
+                            }}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <textarea
+                          rows={2}
+                          value={srv.description || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setContent(prev => {
+                              const list = [...(prev.makeup_services || [])];
+                              list[index].description = val;
+                              return { ...prev, makeup_services: list };
+                            });
+                          }}
+                          className="w-full p-2 rounded bg-white border border-[#EFE3DF] text-xs"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 7: HAIR SERVICES */}
+              {activeTab === 'hair' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-serif text-2xl font-bold text-[#2D2424]">
+                        Hair Services (Separate Section)
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#6E5E5C] font-sans">
+                        Bridal Bun, Open Hair Styling, Soft Curls, Waves, and Party Hairstyling.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const newSrv = {
+                          id: 'hair-' + Date.now(),
+                          name: 'New Hair Service',
+                          price: null,
+                          description: 'Custom hair styling service description.',
+                          category: 'Hair',
+                          active: true,
+                          order: (content.hair_services?.length || 0) + 1
+                        };
+                        setContent(prev => ({
+                          ...prev,
+                          hair_services: [...(prev.hair_services || []), newSrv]
+                        }));
+                      }}
+                      className="btn-secondary px-3 py-1.5 rounded-lg text-xs font-sans font-semibold inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Hair Service</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {(content.hair_services || []).map((srv, index) => (
+                      <div key={srv.id || index} className="p-4 rounded-xl border border-[#EFE3DF] bg-[#FFF9F7] space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              value={srv.name}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setContent(prev => {
+                                  const list = [...(prev.hair_services || [])];
+                                  list[index].name = val;
+                                  return { ...prev, hair_services: list };
+                                });
+                              }}
+                              className="p-2 rounded bg-white border border-[#EFE3DF] text-xs font-bold"
+                            />
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-[#6E5E5C]">₹</span>
+                              <input
+                                type="number"
+                                value={srv.price !== null ? srv.price : ''}
+                                placeholder="Leave blank for 'Price on request'"
+                                onChange={(e) => {
+                                  const val = e.target.value === '' ? null : parseInt(e.target.value) || 0;
+                                  setContent(prev => {
+                                    const list = [...(prev.hair_services || [])];
+                                    list[index].price = val;
+                                    return { ...prev, hair_services: list };
+                                  });
+                                }}
+                                className="w-full p-2 rounded bg-white border border-[#EFE3DF] text-xs font-bold text-[#C4727F]"
+                              />
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Delete ${srv.name}?`)) {
+                                setContent(prev => ({
+                                  ...prev,
+                                  hair_services: prev.hair_services.filter((_, i) => i !== index)
+                                }));
+                              }
+                            }}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <textarea
+                          rows={2}
+                          value={srv.description || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setContent(prev => {
+                              const list = [...(prev.hair_services || [])];
+                              list[index].description = val;
+                              return { ...prev, hair_services: list };
+                            });
+                          }}
+                          className="w-full p-2 rounded bg-white border border-[#EFE3DF] text-xs"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 8: ADD-ONS */}
+              {activeTab === 'addons' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-serif text-2xl font-bold text-[#2D2424]">
+                        Add-On Services (Private Dressing &amp; Kashmiri Kahwa)
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#6E5E5C] font-sans">
+                        Configure comfort services and pricing for brides and family members.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const newAddon = {
+                          id: 'addon-' + Date.now(),
+                          name: 'New Add-On Service',
+                          price: 1000,
+                          description: 'Add-on service description.',
+                          active: true,
+                          order: (content.addons?.length || 0) + 1
+                        };
+                        setContent(prev => ({
+                          ...prev,
+                          addons: [...(prev.addons || []), newAddon]
+                        }));
+                      }}
+                      className="btn-secondary px-3 py-1.5 rounded-lg text-xs font-sans font-semibold inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Add-On</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {(content.addons || []).map((addon, index) => (
+                      <div key={addon.id || index} className="p-4 rounded-xl border border-[#EFE3DF] bg-[#FFF9F7] space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              value={addon.name}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setContent(prev => {
+                                  const list = [...(prev.addons || [])];
+                                  list[index].name = val;
+                                  return { ...prev, addons: list };
+                                });
+                              }}
+                              className="p-2 rounded bg-white border border-[#EFE3DF] text-xs font-bold"
+                            />
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-[#6E5E5C]">₹</span>
+                              <input
+                                type="number"
+                                value={addon.price || 0}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value) || 0;
+                                  setContent(prev => {
+                                    const list = [...(prev.addons || [])];
+                                    list[index].price = val;
+                                    return { ...prev, addons: list };
+                                  });
+                                }}
+                                className="w-full p-2 rounded bg-white border border-[#EFE3DF] text-xs font-bold text-[#C4727F]"
+                              />
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Delete ${addon.name}?`)) {
+                                setContent(prev => ({
+                                  ...prev,
+                                  addons: prev.addons.filter((_, i) => i !== index)
+                                }));
+                              }
+                            }}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <textarea
+                          rows={2}
+                          value={addon.description || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setContent(prev => {
+                              const list = [...(prev.addons || [])];
+                              list[index].description = val;
+                              return { ...prev, addons: list };
+                            });
+                          }}
+                          className="w-full p-2 rounded bg-white border border-[#EFE3DF] text-xs"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 9: GALLERY MANAGEMENT (UPLOAD / REPLACE / DELETE) */}
+              {activeTab === 'gallery' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-serif text-2xl font-bold text-[#2D2424]">
+                        Client Gallery Manager
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#6E5E5C] font-sans">
+                        Upload real bridal and salon work photos. No stock/AI fantasy models.
+                      </p>
+                    </div>
+
+                    <label className="btn-primary px-3.5 py-2 rounded-lg text-xs font-sans font-bold uppercase tracking-wider inline-flex items-center gap-1.5 cursor-pointer shadow-xs">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload New Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleFileUpload(e, (url) => {
+                          const newItem = {
+                            id: 'gal-' + Date.now(),
+                            title: 'New Bridal Transformation',
+                            description: 'Styling completed at Peach Salon.',
+                            category: 'Bridal',
+                            image: url,
+                            order: (content.gallery?.length || 0) + 1
+                          };
+                          setContent(prev => ({
+                            ...prev,
+                            gallery: [newItem, ...(prev.gallery || [])]
+                          }));
+                        })}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {(content.gallery || []).map((item, index) => (
+                      <div key={item.id || index} className="p-3.5 rounded-xl border border-[#EFE3DF] bg-[#FFF9F7] space-y-3">
+                        <div className="aspect-[4/5] rounded-lg overflow-hidden bg-white relative border border-[#EFE3DF]">
+                          <img
+                            src={item.image || '/images/bridal.jpg'}
+                            alt={item.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { e.currentTarget.src = '/images/bridal.jpg'; }}
+                          />
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Delete this photo?')) {
+                                setContent(prev => ({
+                                  ...prev,
+                                  gallery: prev.gallery.filter((_, i) => i !== index)
+                                }));
+                              }
+                            }}
+                            className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-md shadow-xs hover:bg-red-700 transition-colors cursor-pointer"
+                            title="Delete photo"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={item.title}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setContent(prev => {
+                                const list = [...(prev.gallery || [])];
+                                list[index].title = val;
+                                return { ...prev, gallery: list };
+                              });
+                            }}
+                            placeholder="Title / Client look"
+                            className="w-full p-1.5 rounded bg-white border border-[#EFE3DF] text-xs font-bold"
+                          />
+
+                          <select
+                            value={item.category || 'Bridal'}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setContent(prev => {
+                                const list = [...(prev.gallery || [])];
+                                list[index].category = val;
+                                return { ...prev, gallery: list };
+                              });
+                            }}
+                            className="w-full p-1.5 rounded bg-white border border-[#EFE3DF] text-xs"
+                          >
+                            <option value="Bridal">Bridal Makeup</option>
+                            <option value="Makeup">Occasion Makeup</option>
+                            <option value="Hair">Hair Styling</option>
+                          </select>
+
+                          <textarea
+                            rows={2}
+                            value={item.description || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setContent(prev => {
+                                const list = [...(prev.gallery || [])];
+                                list[index].description = val;
+                                return { ...prev, gallery: list };
+                              });
+                            }}
+                            placeholder="Brief description"
+                            className="w-full p-1.5 rounded bg-white border border-[#EFE3DF] text-xs"
+                          />
+
+                          <label className="w-full btn-secondary py-1.5 rounded text-[11px] font-sans font-semibold inline-flex items-center justify-center gap-1 cursor-pointer">
+                            <Upload className="w-3 h-3" />
+                            <span>Replace Photo</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleFileUpload(e, (url) => {
+                                setContent(prev => {
+                                  const list = [...(prev.gallery || [])];
+                                  list[index].image = url;
+                                  return { ...prev, gallery: list };
+                                });
+                              })}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 10: CLIENT BOOKING INQUIRIES */}
+              {activeTab === 'bookings' && (
+                <div className="space-y-6">
                   <div>
-                    <h4 className="font-serif text-xl font-medium text-[#FBF3EC]">
-                      Edit Flagship Details &amp; Operational Hours
-                    </h4>
-                    <p className="text-xs text-[#D1C2BA] font-sans">
-                      Update address, owner details, and working hours. Changes sync to Firebase and the live website.
+                    <h3 className="font-serif text-2xl font-bold text-[#2D2424]">
+                      Client Appointment Requests
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#6E5E5C] font-sans">
+                      Appointments submitted via the website's booking form.
                     </p>
                   </div>
-                  {saveSuccess && (
-                    <span className="text-xs bg-green-950/80 border border-green-500 text-green-300 px-3 py-1 rounded-full flex items-center gap-1 font-semibold font-futuristic animate-in zoom-in-95">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Synchronized with Firebase!
-                    </span>
+
+                  {(!content.bookings || content.bookings.length === 0) ? (
+                    <div className="text-center py-12 bg-[#FFF9F7] rounded-xl border border-[#EFE3DF] space-y-2">
+                      <Calendar className="w-10 h-10 text-[#C4727F] mx-auto opacity-70" />
+                      <h4 className="font-serif text-base font-bold text-[#2D2424]">No Inquiries Yet</h4>
+                      <p className="text-xs text-[#8E7C7A] font-sans">
+                        When clients submit the appointment form, their requests will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {content.bookings.map((b) => (
+                        <div key={b.id} className="p-4.5 rounded-xl border border-[#EFE3DF] bg-[#FFF9F7] space-y-3 relative">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <span className="text-[10px] font-sans uppercase font-bold text-[#C4727F] block">
+                                {b.date} at {b.time}
+                              </span>
+                              <h4 className="font-serif text-lg font-bold text-[#2D2424]">
+                                {b.clientName}
+                              </h4>
+                              <a 
+                                href={`tel:${b.phone?.replace(/\D/g, '')}`}
+                                className="text-xs font-sans font-bold text-[#C4727F] hover:underline flex items-center gap-1 mt-0.5"
+                              >
+                                <Phone className="w-3 h-3" />
+                                <span>{b.phone}</span>
+                              </a>
+                            </div>
+
+                            <button
+                              onClick={() => handleDeleteBooking(b.id)}
+                              className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"
+                              title="Delete inquiry"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <div className="p-2.5 rounded-lg bg-white border border-[#EFE3DF] text-xs space-y-1 font-sans">
+                            <div className="flex justify-between">
+                              <span className="text-[#6E5E5C]">Requested Service:</span>
+                              <span className="font-semibold text-[#2D2424]">{b.service}</span>
+                            </div>
+                            {b.message && (
+                              <div className="pt-1 text-[#6E5E5C] italic">
+                                Note: "{b.message}"
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2 pt-1">
+                            <span className={`text-[11px] font-sans font-bold px-2.5 py-0.5 rounded-full ${
+                              b.status === 'Confirmed' ? 'bg-green-100 text-green-800' :
+                              b.status === 'Completed' ? 'bg-blue-100 text-blue-800' :
+                              'bg-amber-100 text-amber-800'
+                            }`}>
+                              Status: {b.status || 'Received'}
+                            </span>
+
+                            <div className="flex gap-1.5">
+                              {b.status !== 'Confirmed' && (
+                                <button
+                                  onClick={() => handleBookingStatus(b.id, 'Confirmed')}
+                                  className="btn-primary px-2.5 py-1 rounded text-[11px] font-sans font-semibold cursor-pointer"
+                                >
+                                  Confirm
+                                </button>
+                              )}
+                              {b.status !== 'Completed' && (
+                                <button
+                                  onClick={() => handleBookingStatus(b.id, 'Completed')}
+                                  className="btn-secondary px-2.5 py-1 rounded text-[11px] font-sans font-semibold cursor-pointer"
+                                >
+                                  Complete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
+              )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* TAB 11: PASSCODE & SECURITY */}
+              {activeTab === 'security' && (
+                <div className="space-y-6 max-w-lg">
                   <div>
-                    <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1">
-                      Salon Name
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-xs text-[#FBF3EC]"
-                      required
-                    />
+                    <h3 className="font-serif text-2xl font-bold text-[#2D2424]">
+                      Admin Passcode &amp; Security
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#6E5E5C] font-sans">
+                      Change the secret passcode required to access this admin panel.
+                    </p>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1">
-                      Owner Name
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.owner}
-                      onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-                      className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-xs text-[#FBF3EC]"
-                      required
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1">
-                      Full Address
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-xs text-[#FBF3EC]"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1">
-                      Operating Hours (Timing)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.hours}
-                      onChange={(e) => setFormData({ ...formData, hours: e.target.value })}
-                      placeholder="e.g. Monday – Saturday, 10:00 – 18:00 (Closed Sundays)"
-                      className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-xs text-[#FBF3EC]"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1">
-                      Weekly Off / Closed Day
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.closedDay}
-                      onChange={(e) => setFormData({ ...formData, closedDay: e.target.value })}
-                      className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-xs text-[#FBF3EC]"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1">
-                      Phone / WhatsApp Number
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value, whatsapp: e.target.value })}
-                      className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-xs text-[#FBF3EC]"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1">
-                      Header Status Ticker
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-xs text-[#FBF3EC]"
-                      required
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2 pt-2 border-t border-[#D4AF37]/20">
-                    <label className="block text-xs font-futuristic font-bold text-[#EE9A70] uppercase tracking-wider mb-1">
-                      🔒 Change Secret Owner Passcode / PIN
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="Enter new secret password (e.g. MySecretPin2026)"
-                      value={formData.customPasscode || ''}
-                      onChange={(e) => setFormData({ ...formData, customPasscode: e.target.value })}
-                      className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#EE9A70]/50 text-xs text-[#FBF3EC] font-futuristic"
-                    />
-                    <span className="text-[11px] text-[#D1C2BA]/70 mt-1 block">
-                      Change this anytime to keep your portal strictly private. Only you will know this PIN.
-                    </span>
-                  </div>
-                </div>
-
-                <div className="pt-4 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={isCloudSyncing}
-                    className="inline-flex items-center gap-2 bg-[#D4AF37] hover:bg-[#F3E5AB] text-[#0A0807] px-6 py-3 rounded-sm text-xs font-futuristic font-bold uppercase tracking-[0.15em] shadow-xl cursor-pointer"
-                  >
-                    {isCloudSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {isCloudSyncing ? 'Syncing...' : 'Save & Update Live Website'}
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* TAB 3: SERVICES & PRICING */}
-            {activeTab === 'services' && (
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-serif text-xl font-medium text-[#FBF3EC]">
-                    Service Menu &amp; Price Customizer
-                  </h4>
-                  <p className="text-xs text-[#D1C2BA] font-sans">
-                    Edit pricing and durations for your salon services.
-                  </p>
-                </div>
-
-                <div className="space-y-2.5">
-                  {(services || []).map((s) => (
-                    <div key={s.id} className="p-3 bg-[#1A1412] rounded-lg border border-[#D4AF37]/20 flex items-center justify-between gap-4">
-                      <div>
-                        <h6 className="font-serif text-sm font-bold text-[#FBF3EC]">{s.name}</h6>
-                        <span className="text-[11px] font-futuristic text-[#EE9A70]">{s.category} · {s.duration}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-[#D1C2BA]">₹</span>
-                        <input
-                          type="number"
-                          value={s.price}
-                          onChange={(e) => onUpdateServicePrice(s.id, parseInt(e.target.value) || 0)}
-                          className="w-24 p-1.5 text-xs bg-[#0A0807] border border-[#D4AF37]/40 rounded text-[#F3E5AB] font-futuristic font-bold text-right"
-                        />
-                      </div>
+                  {passChangeSuccess && (
+                    <div className="p-3 bg-green-50 border border-green-200 text-xs text-green-800 rounded-lg font-sans font-medium flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      <span>Passcode updated successfully!</span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  )}
 
-            {/* TAB 4: APOTHECARY PRODUCTS */}
-            {activeTab === 'products' && (
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-serif text-xl font-medium text-[#FBF3EC]">
-                    Apothecary Product Pricing
-                  </h4>
-                  <p className="text-xs text-[#D1C2BA] font-sans">
-                    Update retail prices for luxury bottles and jars.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {(products || []).map((p) => (
-                    <div key={p.id} className="p-3 bg-[#1A1412] rounded-lg border border-[#D4AF37]/20 flex items-center justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <h6 className="font-serif text-xs font-bold text-[#FBF3EC] truncate">{p.name}</h6>
-                        <span className="text-[10px] text-[#D1C2BA]/70 font-futuristic">{p.size}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-[#D1C2BA]">₹</span>
-                        <input
-                          type="number"
-                          value={p.price}
-                          onChange={(e) => onUpdateProductPrice(p.id, parseInt(e.target.value) || 0)}
-                          className="w-20 p-1.5 text-xs bg-[#0A0807] border border-[#D4AF37]/40 rounded text-[#F3E5AB] font-futuristic font-bold text-right"
-                        />
-                      </div>
+                  <form onSubmit={handleChangePassword} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        Current Passcode
+                      </label>
+                      <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Enter current passcode"
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                        required
+                      />
                     </div>
-                  ))}
+
+                    <div>
+                      <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase mb-1">
+                        New Secret Passcode
+                      </label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter new passcode (min 4 chars)"
+                        className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm"
+                        required
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="btn-primary px-6 py-2.5 rounded-lg text-xs font-sans font-bold uppercase tracking-wider cursor-pointer"
+                    >
+                      Update Passcode
+                    </button>
+                  </form>
                 </div>
-              </div>
-            )}
+              )}
+
+            </main>
 
           </div>
         )}

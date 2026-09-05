@@ -1,444 +1,320 @@
-import React, { useState } from 'react';
-import { X, Calendar, Clock, Sparkles, CheckCircle2, User, Phone, Mail, Crown, Wine, Droplets, Download, ArrowRight, Trash2, RotateCcw, AlertCircle, Loader2 } from 'lucide-react';
-import { MASTER_STYLISTS } from '../data/salonData';
+import React, { useState, useEffect } from 'react';
+import { X, Calendar, Clock, Sparkles, CheckCircle2, User, Phone, MapPin, Heart, AlertCircle, Trash2 } from 'lucide-react';
 import { api } from '../services/api';
-import confetti from 'canvas-confetti';
 
-export default function BookingModal({ isOpen, onClose, initialService, salonInfo, services, onAddBooking, onDeleteBooking }) {
-  const [service, setService] = useState(initialService || (services && services[0]?.name) || "Molecular Liquid-Silk Restoration & Gloss");
-  const [stylist, setStylist] = useState(MASTER_STYLISTS[0].name);
-  
-  // Default tomorrow date, ensuring not a Sunday
-  const getNextAvailableDate = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    if (d.getDay() === 0) { // Sunday -> move to Monday
-      d.setDate(d.getDate() + 1);
-    }
-    return d.toISOString().split('T')[0];
-  };
+export default function BookingModal({
+  isOpen,
+  onClose,
+  initialService = '',
+  siteSettings,
+  onAddBooking
+}) {
+  const [formData, setFormData] = useState({
+    clientName: '',
+    phone: '',
+    service: 'Classic Bridal Makeup',
+    date: '',
+    time: '11:00 AM',
+    message: ''
+  });
 
-  const [date, setDate] = useState(getNextAvailableDate);
-  const [time, setTime] = useState('11:00 AM');
-  const [clientName, setClientName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [notes, setNotes] = useState('');
-  const [suiteUpgrade, setSuiteUpgrade] = useState(false);
-  const [champagneService, setChampagneService] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [createdBookingId, setCreatedBookingId] = useState(null);
-  const [sundayError, setSundayError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const servicesList = [
+    'Classic Bridal Makeup (₹12,000)',
+    'HD Bridal Makeup (₹15,000)',
+    'Airbrush Makeup (₹20,000)',
+    'Natural Makeup',
+    'Soft Glam Makeup',
+    'Engagement Makeup',
+    'Party Makeup',
+    'Velvet Makeup',
+    'Cocktail Glam Makeup',
+    'Bridal Hair Styling',
+    'Bridal Bun',
+    'Open Hair Styling',
+    'Soft Curls',
+    'Waves',
+    'Party Hairstyling',
+    'Private Dressing & Outfit Setting (₹1,200)',
+    'Kashmiri Kahwa Service & Cocktail (₹700)',
+    'General Studio Consultation'
+  ];
+
+  useEffect(() => {
+    if (initialService) {
+      const match = servicesList.find(s => s.toLowerCase().includes(initialService.toLowerCase()));
+      setFormData(prev => ({
+        ...prev,
+        service: match || initialService
+      }));
+    }
+  }, [initialService, isOpen]);
 
   if (!isOpen) return null;
 
-  // Operating Hours: 10:00 AM – 6:00 PM (Monday – Saturday)
-  const timeSlots = [
-    '10:00 AM', '11:00 AM', '12:00 PM', '01:30 PM', '03:00 PM', '04:15 PM', '05:00 PM'
-  ];
-
-  const handleDateChange = (e) => {
-    const selected = e.target.value;
-    const dayOfWeek = new Date(selected).getDay();
-    if (dayOfWeek === 0) {
-      setSundayError(true);
-    } else {
-      setSundayError(false);
-      setDate(selected);
-    }
-  };
-
-  const handleClearForm = () => {
-    setClientName('');
-    setPhone('');
-    setEmail('');
-    setNotes('');
-    setSuiteUpgrade(false);
-    setChampagneService(false);
-    setSundayError(false);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (sundayError) {
-      alert('Peach Salon is closed on Sundays. Please select Monday through Saturday (10:00 AM – 6:00 PM).');
+    setErrorMessage('');
+
+    if (!formData.clientName.trim() || !formData.phone.trim() || !formData.date) {
+      setErrorMessage('Please fill in your name, mobile number, and preferred date.');
+      return;
+    }
+
+    if (formData.phone.replace(/\D/g, '').length < 10) {
+      setErrorMessage('Please enter a valid 10-digit mobile number.');
       return;
     }
 
     setLoading(true);
-
-    const bookingPayload = {
-      service,
-      stylist,
-      date,
-      time,
-      clientName,
-      phone,
-      email,
-      notes,
-      suiteUpgrade,
-      champagneService
-    };
-
     try {
-      // 1. Post to Express + Firebase API Endpoint
-      const response = await api.createBooking(bookingPayload);
-      const savedBooking = response.booking || {
-        id: 'BK-' + Date.now(),
-        ...bookingPayload,
-        createdAt: new Date().toISOString()
-      };
-
-      onAddBooking(savedBooking);
-      setCreatedBookingId(savedBooking.id);
-      setIsSubmitted(true);
-
-      confetti({
-        particleCount: 90,
-        spread: 75,
-        origin: { y: 0.6 },
-        colors: ['#D4AF37', '#EE9A70', '#F3E5AB', '#FFFFFF']
-      });
+      const res = await api.createBooking(formData);
+      if (res.success) {
+        setSuccess(true);
+        if (onAddBooking) {
+          onAddBooking(res.booking || { id: 'BK-' + Date.now(), ...formData, status: 'Received' });
+        }
+      } else {
+        setErrorMessage(res.error || 'Failed to submit appointment inquiry.');
+      }
     } catch (err) {
-      console.error('Error submitting booking:', err);
+      setErrorMessage(err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteSubmittedBooking = async () => {
-    if (createdBookingId) {
-      await api.deleteBooking(createdBookingId);
-      onDeleteBooking(createdBookingId);
-    }
-    handleClearForm();
-    setIsSubmitted(false);
-    onClose();
-  };
-
-  const downloadCalendarEvent = () => {
-    const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Peach Salon//Atelier Appointment//EN
-BEGIN:VEVENT
-SUMMARY:Peach Salon Appointment - ${service}
-DESCRIPTION:Atelier reservation with ${stylist} (Owner: ${salonInfo.owner}). Location: ${salonInfo.address}. Notes: ${notes || 'None'}
-DTSTART:${date.replace(/-/g, '')}T110000
-DTEND:${date.replace(/-/g, '')}T130000
-LOCATION:${salonInfo.address}
-STATUS:CONFIRMED
-END:VEVENT
-END:VCALENDAR`;
-
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = window.URL.createObjectURL(blob);
-    link.setAttribute('download', `PeachSalon_Appointment_${date}.ics`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleReset = () => {
+    setFormData({
+      clientName: '',
+      phone: '',
+      service: 'Classic Bridal Makeup',
+      date: '',
+      time: '11:00 AM',
+      message: ''
+    });
+    setErrorMessage('');
+    setSuccess(false);
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#070605]/92 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-[#14100E] text-[#FBF3EC] rounded-2xl max-w-2xl w-full border border-[#D4AF37]/40 shadow-2xl relative p-6 sm:p-8 my-8 max-h-[92vh] overflow-y-auto futuristic-card">
+    <div className="fixed inset-0 z-50 bg-[#2D2424]/70 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+      <div className="bg-white text-[#2D2424] rounded-2xl max-w-xl w-full border border-[#EFE3DF] shadow-2xl relative p-6 sm:p-8 my-8 max-h-[92vh] overflow-y-auto">
         
         {/* Close button */}
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-[#D1C2BA] hover:text-[#FBF3EC] rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+          className="absolute top-4 right-4 p-2 text-[#6E5E5C] hover:text-[#2D2424] rounded-full hover:bg-[#FDF3EF] transition-colors cursor-pointer"
+          aria-label="Close modal"
         >
           <X className="w-5 h-5" />
         </button>
 
-        {!isSubmitted ? (
-          <div>
-            <div className="mb-6 pb-4 border-b border-[#D4AF37]/25 flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-futuristic uppercase tracking-[0.25em] text-[#EE9A70] font-bold">
-                    Bespoke Appointment Concierge
-                  </span>
-                </div>
-                <h3 className="font-serif text-2xl sm:text-3xl font-medium text-[#FBF3EC]">
-                  Reserve Your Chair in Prayagraj
-                </h3>
-                <p className="text-xs text-[#D1C2BA] mt-1 font-sans">
-                  Flagship Atelier: {salonInfo.address} · {salonInfo.timingShort} (Closed Sundays)
-                </p>
-              </div>
-
-              {/* Clear Details button */}
-              {(clientName || phone || notes) && (
-                <button
-                  type="button"
-                  onClick={handleClearForm}
-                  className="inline-flex items-center gap-1 text-[11px] font-futuristic uppercase tracking-wider text-[#EE9A70] hover:text-white border border-[#EE9A70]/40 px-2.5 py-1 rounded bg-[#1A1412] transition-colors cursor-pointer"
-                  title="Clear all entered details"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  Clear
-                </button>
-              )}
+        {success ? (
+          /* SUCCESS CONFIRMATION SCREEN */
+          <div className="text-center py-8 space-y-4 animate-in zoom-in-95">
+            <div className="w-14 h-14 rounded-full bg-[#FDF1ED] text-[#C4727F] flex items-center justify-center mx-auto shadow-xs">
+              <CheckCircle2 className="w-8 h-8" />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <span className="text-[11px] font-sans uppercase tracking-wider text-[#C4727F] font-bold block">
+                Inquiry Received
+              </span>
+              <h3 className="font-serif text-2xl font-bold text-[#2D2424] mt-1">
+                Thank You, {formData.clientName || 'Guest'}
+              </h3>
+              <p className="text-xs sm:text-sm text-[#5C4E4D] font-sans mt-2 leading-relaxed">
+                Your appointment request for <strong>{formData.service}</strong> on <strong>{formData.date} at {formData.time}</strong> has been logged at Peach Salon, Manauri.
+              </p>
+            </div>
+
+            <div className="p-4 bg-[#FFF9F7] rounded-xl border border-[#EFE3DF] text-xs text-[#6E5E5C] font-sans space-y-1 text-left">
+              <div className="flex justify-between">
+                <span>Studio Location:</span>
+                <span className="font-semibold text-[#2D2424]">Manauri, Prayagraj</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Contact Phone:</span>
+                <span className="font-semibold text-[#2D2424]">{formData.phone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Director &amp; Lead:</span>
+                <span className="font-semibold text-[#2D2424]">Eshvi</span>
+              </div>
+            </div>
+
+            <div className="pt-3 flex gap-2 justify-center">
+              <button
+                onClick={handleReset}
+                className="btn-secondary px-5 py-2.5 rounded-lg text-xs font-sans font-semibold cursor-pointer"
+              >
+                New Appointment
+              </button>
+              <button
+                onClick={onClose}
+                className="btn-primary px-6 py-2.5 rounded-lg text-xs font-sans font-bold uppercase tracking-wider cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* APPOINTMENT INQUIRY FORM */
+          <div className="space-y-5">
+            
+            {/* Modal Header */}
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full badge-soft text-[11px] font-sans font-semibold mb-2">
+                <MapPin className="w-3 h-3 text-[#C4727F]" />
+                <span>Manauri, Prayagraj &bull; Open 10 AM – 7 PM</span>
+              </div>
+              <h3 className="font-serif text-2xl sm:text-3xl font-bold text-[#2D2424]">
+                Book Studio Appointment
+              </h3>
+              <p className="text-xs sm:text-sm text-[#6E5E5C] font-sans mt-1">
+                Schedule your bridal or makeup session with director Eshvi.
+              </p>
+            </div>
+
+            {errorMessage && (
+              <div className="p-3 bg-red-50 border border-red-200 text-xs text-red-700 rounded-lg font-sans flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
               
+              {/* Name & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase tracking-wider mb-1">
+                    Your Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.clientName}
+                    onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
+                    placeholder="e.g. Priya Sharma"
+                    className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm text-[#2D2424] focus:outline-none focus:border-[#C4727F]"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase tracking-wider mb-1">
+                    Mobile Number *
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="e.g. 98390 12345"
+                    className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm text-[#2D2424] focus:outline-none focus:border-[#C4727F]"
+                    required
+                  />
+                </div>
+              </div>
+
               {/* Service Selection */}
               <div>
-                <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
-                  Select Haute Commission or Treatment
+                <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase tracking-wider mb-1">
+                  Select Service *
                 </label>
                 <select
-                  value={service}
-                  onChange={(e) => setService(e.target.value)}
-                  className="w-full p-3 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 font-serif text-sm text-[#FBF3EC] focus:outline-none focus:border-[#EE9A70]"
-                  required
+                  value={formData.service}
+                  onChange={(e) => setFormData({ ...formData, service: e.target.value })}
+                  className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm text-[#2D2424] focus:outline-none focus:border-[#C4727F]"
                 >
-                  {(services || []).map(s => (
-                    <option key={s.id} value={s.name} className="bg-[#14100E]">
-                      {s.name} ({s.duration} · ₹{s.price.toLocaleString('en-IN')})
-                    </option>
+                  {servicesList.map((srv, idx) => (
+                    <option key={idx} value={srv}>{srv}</option>
                   ))}
-                  <option value="Bespoke Royal Bridal Package by Eshivi" className="bg-[#14100E]">
-                    Bespoke Royal Bridal Package by Eshivi (By Consultation)
-                  </option>
                 </select>
               </div>
 
-              {/* Master Stylist Preference */}
-              <div>
-                <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
-                  Preferred Creative Director / Stylist
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {MASTER_STYLISTS.map(s => (
-                    <button
-                      type="button"
-                      key={s.id}
-                      onClick={() => setStylist(s.name)}
-                      className={`p-3 rounded-lg text-left border transition-all cursor-pointer ${
-                        stylist === s.name
-                          ? 'bg-[#241B18] border-[#EE9A70] shadow-md ring-1 ring-[#EE9A70]'
-                          : 'bg-[#1A1412] border-[#D4AF37]/20 hover:bg-[#241B18]/60'
-                      }`}
-                    >
-                      <span className="font-serif font-bold text-xs text-[#FBF3EC] block">{s.name}</span>
-                      <span className="text-[10px] text-[#D1C2BA] block leading-tight font-futuristic">{s.role.split('&')[0]}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Date & Time Slot */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Date & Time */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
-                    Appointment Date (Mon–Sat)
+                  <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase tracking-wider mb-1">
+                    Preferred Date *
                   </label>
                   <input
                     type="date"
-                    value={date}
-                    onChange={handleDateChange}
+                    value={formData.date}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-sm text-[#FBF3EC] focus:outline-none focus:border-[#EE9A70] font-futuristic"
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm text-[#2D2424] focus:outline-none focus:border-[#C4727F]"
                     required
                   />
-                  {sundayError && (
-                    <div className="flex items-center gap-1.5 text-xs text-red-400 mt-1">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      <span>Peach Salon is closed on Sundays. Please select another day.</span>
-                    </div>
-                  )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
-                    Preferred Time Slot (10 AM – 6 PM)
+                  <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase tracking-wider mb-1">
+                    Preferred Time
                   </label>
                   <select
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-sm text-[#FBF3EC] focus:outline-none focus:border-[#EE9A70] font-futuristic"
+                    value={formData.time}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs sm:text-sm text-[#2D2424] focus:outline-none focus:border-[#C4727F]"
                   >
-                    {timeSlots.map((slot, i) => (
-                      <option key={i} value={slot} className="bg-[#14100E]">{slot}</option>
-                    ))}
+                    <option value="10:00 AM">10:00 AM</option>
+                    <option value="11:00 AM">11:00 AM</option>
+                    <option value="12:00 PM">12:00 PM</option>
+                    <option value="1:00 PM">01:00 PM</option>
+                    <option value="2:00 PM">02:00 PM</option>
+                    <option value="3:00 PM">03:00 PM</option>
+                    <option value="4:00 PM">04:00 PM</option>
+                    <option value="5:00 PM">05:00 PM</option>
+                    <option value="6:00 PM">06:00 PM</option>
                   </select>
                 </div>
               </div>
 
-              {/* VIP Upgrades */}
-              <div className="p-3.5 rounded-xl bg-[#1A1412] border border-[#D4AF37]/30 space-y-2.5">
-                <span className="text-[11px] font-futuristic uppercase tracking-wider font-bold text-[#EE9A70] block">
-                  VIP Atelier Upgrades (Optional)
-                </span>
-                
-                <label className="flex items-center justify-between text-xs cursor-pointer">
-                  <span className="flex items-center gap-2 text-[#FBF3EC]">
-                    <Crown className="w-3.5 h-3.5 text-[#D4AF37]" />
-                    Private Gold-Gilded Dressing Suite in Manauri (+₹4,500)
-                  </span>
-                  <input 
-                    type="checkbox" 
-                    checked={suiteUpgrade} 
-                    onChange={(e) => setSuiteUpgrade(e.target.checked)}
-                    className="accent-[#EE9A70] w-4 h-4 cursor-pointer"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between text-xs cursor-pointer">
-                  <span className="flex items-center gap-2 text-[#FBF3EC]">
-                    <Wine className="w-3.5 h-3.5 text-[#D4AF37]" />
-                    Artisan High-Tea &amp; Kashmiri Kahwa Service (+₹2,500)
-                  </span>
-                  <input 
-                    type="checkbox" 
-                    checked={champagneService} 
-                    onChange={(e) => setChampagneService(e.target.checked)}
-                    className="accent-[#EE9A70] w-4 h-4 cursor-pointer"
-                  />
-                </label>
-              </div>
-
-              {/* Client Contact Info */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1">
-                    Your Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    placeholder="e.g. Radhika Singhania"
-                    className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-sm text-[#FBF3EC] focus:outline-none focus:border-[#EE9A70]"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1">
-                    Phone / WhatsApp Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 98390 XXXXX"
-                    className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-sm text-[#FBF3EC] focus:outline-none focus:border-[#EE9A70] font-futuristic"
-                    required
-                  />
-                </div>
-              </div>
-
+              {/* Message */}
               <div>
-                <label className="block text-xs font-futuristic font-bold text-[#D4AF37] uppercase tracking-wider mb-1">
-                  Special Notes / Occasion Details (Optional)
+                <label className="block text-xs font-sans font-bold text-[#2D2424] uppercase tracking-wider mb-1">
+                  Function or Outfit Details (Optional)
                 </label>
                 <textarea
-                  rows="2"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="e.g. Bridal consultation with Eshivi, bringing heirloom jewelry..."
-                  className="w-full p-2.5 rounded-lg bg-[#0A0807] border border-[#D4AF37]/40 text-xs text-[#FBF3EC] focus:outline-none focus:border-[#EE9A70] font-sans"
-                ></textarea>
+                  rows={2}
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                  placeholder="Special requests, outfit colour, etc."
+                  className="w-full p-2.5 rounded-lg bg-[#FFF9F7] border border-[#EFE3DF] text-xs text-[#2D2424] focus:outline-none focus:border-[#C4727F]"
+                />
               </div>
 
-              {/* Submit & Reset Buttons */}
-              <div className="flex gap-3 pt-1">
+              {/* Actions */}
+              <div className="pt-2 flex items-center justify-between gap-3">
                 <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 py-4 rounded-sm bg-[#D4AF37] hover:bg-[#F3E5AB] text-[#0A0807] font-futuristic font-bold text-xs uppercase tracking-[0.15em] shadow-2xl transition-all cursor-pointer flex items-center justify-center gap-2"
+                  type="button"
+                  onClick={handleReset}
+                  className="px-4 py-2.5 text-xs text-[#6E5E5C] hover:text-[#2D2424] font-sans font-medium transition-colors cursor-pointer"
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  {loading ? 'Transmitting to Atelier...' : 'Confirm Atelier Appointment Request'}
+                  Clear Details
                 </button>
 
                 <button
-                  type="button"
-                  onClick={handleClearForm}
-                  className="px-4 py-4 rounded-sm bg-[#1A1412] hover:bg-[#241B18] text-[#D1C2BA] border border-[#D4AF37]/30 text-xs transition-colors cursor-pointer"
-                  title="Reset form"
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary px-6 py-3 rounded-lg text-xs font-sans font-bold uppercase tracking-wider shadow-xs flex items-center gap-2 cursor-pointer"
                 >
-                  <RotateCcw className="w-4 h-4" />
+                  {loading ? (
+                    <span>Submitting...</span>
+                  ) : (
+                    <>
+                      <Calendar className="w-4 h-4" />
+                      <span>Confirm Appointment Request</span>
+                    </>
+                  )}
                 </button>
               </div>
 
             </form>
-          </div>
-        ) : (
-          /* CONFIRMATION SCREEN WITH CANCEL / DELETE BUTTON */
-          <div className="text-center py-6 space-y-6 animate-in zoom-in-95 duration-300">
-            <div className="w-16 h-16 rounded-full bg-[#EE9A70]/20 text-[#EE9A70] flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-10 h-10" />
-            </div>
-
-            <div>
-              <span className="text-[10px] font-futuristic uppercase tracking-[0.25em] text-[#D4AF37] font-bold block">
-                Appointment Reserved in Firebase &amp; Atelier
-              </span>
-              <h3 className="font-serif text-3xl font-medium text-[#FBF3EC] mt-1">
-                Your Chair is Prepared, {clientName || 'Valued Patron'}
-              </h3>
-              <p className="text-xs sm:text-sm text-[#D1C2BA] max-w-md mx-auto mt-2 font-sans">
-                Our Concierge &amp; Founder Eshivi will contact you at <strong className="text-[#F3E5AB] font-futuristic">{phone}</strong> to confirm your formula in Manauri.
-              </p>
-            </div>
-
-            {/* Appointment Summary Receipt Card */}
-            <div className="bg-[#1A1412] border border-[#D4AF37]/30 rounded-xl p-5 text-left text-xs space-y-2 max-w-md mx-auto futuristic-card">
-              <div className="flex justify-between border-b border-white/10 pb-2">
-                <span className="text-[#D1C2BA]/70">Booking ID:</span>
-                <span className="font-futuristic font-bold text-[#EE9A70]">{createdBookingId}</span>
-              </div>
-              <div className="flex justify-between border-b border-white/10 pb-2">
-                <span className="text-[#D1C2BA]/70">Service:</span>
-                <span className="font-bold text-[#F3E5AB]">{service}</span>
-              </div>
-              <div className="flex justify-between border-b border-white/10 pb-2">
-                <span className="text-[#D1C2BA]/70">Lead Artist:</span>
-                <span className="font-bold text-[#FBF3EC]">{stylist}</span>
-              </div>
-              <div className="flex justify-between border-b border-white/10 pb-2">
-                <span className="text-[#D1C2BA]/70">Scheduled For:</span>
-                <span className="font-futuristic font-bold text-[#FBF3EC]">{date} at {time}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#D1C2BA]/70">Location:</span>
-                <span className="text-[#EE9A70] font-medium">{salonInfo.address}</span>
-              </div>
-            </div>
-
-            {/* Action Buttons: Add to Calendar, Delete/Cancel, Return */}
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <button
-                onClick={downloadCalendarEvent}
-                className="inline-flex items-center gap-2 bg-[#0A0807] border border-[#D4AF37]/40 text-[#FBF3EC] px-4 py-2.5 rounded text-xs font-futuristic font-medium hover:bg-white/10 transition-colors cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5 text-[#EE9A70]" />
-                Add to Calendar
-              </button>
-
-              <button
-                onClick={handleDeleteSubmittedBooking}
-                className="inline-flex items-center gap-1.5 bg-red-950/70 border border-red-500/40 text-red-200 px-4 py-2.5 rounded text-xs font-futuristic font-medium hover:bg-red-900 transition-colors cursor-pointer"
-                title="Cancel or delete this appointment"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Cancel / Delete Booking
-              </button>
-
-              <button
-                onClick={onClose}
-                className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#0A0807] font-futuristic font-bold uppercase tracking-wider px-5 py-2.5 rounded text-xs hover:bg-[#F3E5AB] transition-colors cursor-pointer"
-              >
-                Return to Atelier
-              </button>
-            </div>
-
           </div>
         )}
 
