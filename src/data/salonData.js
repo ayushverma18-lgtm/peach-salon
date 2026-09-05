@@ -166,8 +166,41 @@ export const INITIAL_MAKEUP_SERVICES = [
   }
 ];
 
-// 3. HAIR SERVICES (Completely Separate Section)
+// 3. HAIR SERVICES (Completely Separate Section with Real Client Photos)
 export const INITIAL_HAIR_SERVICES = [
+  {
+    id: "hair-highlights",
+    name: "Hair Highlights / Balayage",
+    price: null,
+    priceFormatted: "Price on request",
+    description: "Dimensional hair highlights and modern balayage techniques customized to complement Indian hair tones with smooth, glossy blending.",
+    image: "/images/hair_highlights.jpg",
+    category: "Hair",
+    active: true,
+    order: 1
+  },
+  {
+    id: "hair-fashion-color",
+    name: "Fashion Hair Colour",
+    price: null,
+    priceFormatted: "Price on request",
+    description: "Vibrant fashion shades, rose undertones, and ombre colouring using high-grade hair care products for radiant shine.",
+    image: "/images/hair_fashion_color.jpg",
+    category: "Hair",
+    active: true,
+    order: 2
+  },
+  {
+    id: "hair-global-color",
+    name: "Global Hair Colour",
+    price: null,
+    priceFormatted: "Price on request",
+    description: "Full global hair colouring from root to tip in rich mocha, chocolate, and natural tones with rich gloss and even coverage.",
+    image: "/images/hair_global_color.jpg",
+    category: "Hair",
+    active: true,
+    order: 3
+  },
   {
     id: "hair-bridal-styling",
     name: "Bridal Hair Styling",
@@ -176,17 +209,17 @@ export const INITIAL_HAIR_SERVICES = [
     description: "Hair styling planned according to the bridal outfit, jewellery and overall makeup look.",
     category: "Hair",
     active: true,
-    order: 1
+    order: 4
   },
   {
     id: "hair-bridal-bun",
-    name: "Bridal Bun",
+    name: "Bridal Bun & Updos",
     price: null,
     priceFormatted: "Price on request",
-    description: "A neat bridal bun suitable for traditional bridal hairstyles and hair accessories.",
+    description: "A neat bridal bun suitable for traditional bridal hairstyles, matha patti, and heavy dupatta setting.",
     category: "Hair",
     active: true,
-    order: 2
+    order: 5
   },
   {
     id: "hair-open-styling",
@@ -196,27 +229,27 @@ export const INITIAL_HAIR_SERVICES = [
     description: "Styled open hair with a clean and polished finish suitable for engagement and party looks.",
     category: "Hair",
     active: true,
-    order: 3
+    order: 6
   },
   {
     id: "hair-soft-curls",
     name: "Soft Curls",
     price: null,
     priceFormatted: "Price on request",
-    description: "Soft curls for a simple and elegant look.",
+    description: "Soft curls for a simple, natural and elegant occasion look.",
     category: "Hair",
     active: true,
-    order: 4
+    order: 7
   },
   {
     id: "hair-waves",
-    name: "Waves",
+    name: "Waves & Styling",
     price: null,
     priceFormatted: "Price on request",
-    description: "Loose waves for a relaxed and polished appearance.",
+    description: "Loose waves for a relaxed, bouncy and polished appearance.",
     category: "Hair",
     active: true,
-    order: 5
+    order: 8
   },
   {
     id: "hair-party-hairstyling",
@@ -226,7 +259,7 @@ export const INITIAL_HAIR_SERVICES = [
     description: "Hairstyling suitable for parties, family functions and celebrations.",
     category: "Hair",
     active: true,
-    order: 6
+    order: 9
   }
 ];
 
@@ -256,50 +289,50 @@ export const INITIAL_ADDONS = [
 export const INITIAL_GALLERY_ITEMS = [
   {
     id: "gal-1",
-    title: "Bridal Makeup & Dupatta Draping",
-    description: "Classic bridal look with neat eye styling and traditional matha patti setting.",
+    title: "Royal Red Zardozi HD Bridal Look",
+    description: "Traditional royal red bridal makeup with high-definition smooth base, defined eyes, and matha patti setting.",
     category: "Bridal",
-    image: "/images/bridal.jpg",
+    image: "/images/bridal_hd_red.jpg",
     order: 1
   },
   {
     id: "gal-2",
-    title: "HD Engagement Glam",
-    description: "Smooth luminous base and balanced eye definition for pre-wedding ceremony.",
-    category: "Makeup",
-    image: "/images/makeup.jpg",
+    title: "Emerald Polki Heritage Bridal Styling",
+    description: "Refined HD bridal finish with soft contouring, balanced blush, and traditional emerald necklace styling.",
+    category: "Bridal",
+    image: "/images/bridal_emerald_gold.jpg",
     order: 2
   },
   {
     id: "gal-3",
-    title: "Traditional Bridal Bun with Floral Accessories",
-    description: "Neat structural bridal bun styling suitable for heavy bridal dupattas.",
+    title: "Dimensional Hair Highlights / Balayage",
+    description: "Multi-tonal balayage highlights on rich dark hair with radiant shine.",
     category: "Hair",
-    image: "/images/hair.jpg",
+    image: "/images/hair_highlights.jpg",
     order: 3
   },
   {
     id: "gal-4",
-    title: "Soft Curls & Open Hair Styling",
-    description: "Elegant soft curls styled for reception and party wear.",
+    title: "Rose Ombre Fashion Hair Colour",
+    description: "Vibrant fashion hair colour with smooth blend and glossy finish.",
     category: "Hair",
-    image: "/images/hair.jpg",
+    image: "/images/hair_fashion_color.jpg",
     order: 4
   },
   {
     id: "gal-5",
-    title: "Velvet Finish Party Makeup",
-    description: "Refined, comfortable look with smooth velvet base and soft contouring.",
-    category: "Makeup",
-    image: "/images/makeup.jpg",
+    title: "Glossy Mocha Global Hair Colour",
+    description: "Root-to-tip rich mocha global hair color with healthy natural shine.",
+    category: "Hair",
+    image: "/images/hair_global_color.jpg",
     order: 5
   },
   {
     id: "gal-6",
-    title: "Airbrush Bridal Finish",
-    description: "Weightless and long-lasting finish photographed under natural lighting.",
-    category: "Bridal",
-    image: "/images/bridal.jpg",
+    title: "Traditional Bridal Bun with Floral Styling",
+    description: "Neat structural bridal bun styling suitable for heavy bridal dupattas.",
+    category: "Hair",
+    image: "/images/bridal_hd_red.jpg",
     order: 6
   }
 ];

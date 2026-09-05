@@ -1,11 +1,13 @@
 import React from 'react';
 import { Sparkles, Calendar, Check, Heart, ShieldCheck, HelpCircle } from 'lucide-react';
 import useScrollReveal from '../hooks/useScrollReveal';
+import hdRedBridalImg from '../assets/bridal_hd_red.jpg';
+import emeraldBridalImg from '../assets/bridal_emerald_gold.jpg';
 
 export default function BridalMakeupSection({ onOpenBooking, bridalPackages }) {
   const revealRef = useScrollReveal();
 
-  const packages = bridalPackages && bridalPackages.length > 0 ? bridalPackages : [
+  const defaultPackages = [
     {
       id: "bridal-classic",
       name: "Classic Bridal Makeup",
@@ -18,7 +20,7 @@ export default function BridalMakeupSection({ onOpenBooking, bridalPackages }) {
         "Dupatta setting & basic jewellery fixing",
         "Polished finish suitable for wedding ceremonies"
       ],
-      image: "/images/bridal.jpg",
+      image: emeraldBridalImg,
       active: true
     },
     {
@@ -34,7 +36,7 @@ export default function BridalMakeupSection({ onOpenBooking, bridalPackages }) {
         "Optimized for bridal photography & video"
       ],
       recommended: true,
-      image: "/images/bridal.jpg",
+      image: hdRedBridalImg,
       active: true
     },
     {
@@ -49,10 +51,18 @@ export default function BridalMakeupSection({ onOpenBooking, bridalPackages }) {
         "High durability for long wedding functions",
         "Complete bridal styling & jewellery setting"
       ],
-      image: "/images/bridal.jpg",
+      image: hdRedBridalImg,
       active: true
     }
   ];
+
+  const packages = (bridalPackages && bridalPackages.length > 0 ? bridalPackages : defaultPackages).map(pkg => {
+    // Map HD bridal to red bridal image
+    if (pkg.id === 'bridal-hd' || pkg.name.toLowerCase().includes('hd')) {
+      return { ...pkg, image: pkg.image || hdRedBridalImg, fallbackImg: hdRedBridalImg };
+    }
+    return { ...pkg, image: pkg.image || emeraldBridalImg, fallbackImg: emeraldBridalImg };
+  });
 
   return (
     <section id="bridal" className="py-16 md:py-24 bg-[#FFF9F7] border-b border-[#EFE3DF]">
@@ -87,7 +97,7 @@ export default function BridalMakeupSection({ onOpenBooking, bridalPackages }) {
             >
               {pkg.recommended && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#C4727F] text-white text-[11px] font-sans uppercase tracking-wider font-bold px-4 py-1 rounded-full shadow-xs">
-                  Most Popular
+                  Most Popular &bull; HD Studio Special
                 </div>
               )}
 
@@ -111,14 +121,14 @@ export default function BridalMakeupSection({ onOpenBooking, bridalPackages }) {
                   {pkg.description}
                 </p>
 
-                {/* Real Bridal Image Preview if provided */}
-                <div className="aspect-[16/9] rounded-xl overflow-hidden bg-[#FDF3EF] border border-[#EFE3DF]">
+                {/* Real Bridal Image Preview */}
+                <div className="aspect-[4/3] rounded-xl overflow-hidden bg-[#FDF3EF] border border-[#EFE3DF] shadow-xs">
                   <img
-                    src={pkg.image || "/images/bridal.jpg"}
+                    src={pkg.image || pkg.fallbackImg || hdRedBridalImg}
                     alt={`${pkg.name} at Peach Salon Manauri, Prayagraj`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover object-top"
                     onError={(e) => {
-                      e.currentTarget.src = '/images/bridal.jpg';
+                      e.currentTarget.src = pkg.fallbackImg || hdRedBridalImg;
                     }}
                   />
                 </div>

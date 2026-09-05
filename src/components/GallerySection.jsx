@@ -1,56 +1,103 @@
 import React, { useState } from 'react';
 import { Image as ImageIcon, Sparkles, Filter, X, ZoomIn, Heart } from 'lucide-react';
 import useScrollReveal from '../hooks/useScrollReveal';
+import hdRedBridalImg from '../assets/bridal_hd_red.jpg';
+import emeraldBridalImg from '../assets/bridal_emerald_gold.jpg';
+import hairHighlightsImg from '../assets/hair_highlights.jpg';
+import hairFashionColorImg from '../assets/hair_fashion_color.jpg';
+import hairGlobalColorImg from '../assets/hair_global_color.jpg';
 
 export default function GallerySection({ onOpenBooking, galleryItems }) {
   const revealRef = useScrollReveal();
   const [activeCategory, setActiveCategory] = useState('All');
   const [previewImage, setPreviewImage] = useState(null);
 
-  const items = galleryItems && galleryItems.length > 0 ? galleryItems : [
+  const defaultItems = [
     {
       id: "gal-1",
-      title: "Bridal Makeup & Dupatta Draping",
-      description: "Classic bridal look with neat eye styling and traditional matha patti setting.",
+      title: "Royal Red Zardozi HD Bridal Look",
+      description: "Traditional royal red bridal makeup with high-definition smooth base, defined eyes, and matha patti setting.",
       category: "Bridal",
-      image: "/images/bridal.jpg"
+      image: hdRedBridalImg,
+      fallback: hdRedBridalImg
     },
     {
       id: "gal-2",
-      title: "HD Engagement Glam",
-      description: "Smooth luminous base and balanced eye definition for pre-wedding ceremony.",
-      category: "Makeup",
-      image: "/images/makeup.jpg"
+      title: "Emerald Polki Heritage Bridal Styling",
+      description: "Refined HD bridal finish with soft contouring, balanced blush, and traditional emerald necklace styling.",
+      category: "Bridal",
+      image: emeraldBridalImg,
+      fallback: emeraldBridalImg
     },
     {
       id: "gal-3",
-      title: "Traditional Bridal Bun with Floral Accessories",
-      description: "Neat structural bridal bun styling suitable for heavy bridal dupattas.",
+      title: "Dimensional Hair Highlights / Balayage",
+      description: "Caramel and blonde balayage dimensional highlights with smooth blended gradient on dark hair.",
       category: "Hair",
-      image: "/images/hair.jpg"
+      image: hairHighlightsImg,
+      fallback: hairHighlightsImg
     },
     {
       id: "gal-4",
-      title: "Soft Curls & Open Hair Styling",
-      description: "Elegant soft curls styled for reception and party wear.",
+      title: "Rose Ombre Fashion Hair Colour",
+      description: "Rich rose-tinted ombre fashion hair colour with smooth gloss and healthy shine.",
       category: "Hair",
-      image: "/images/hair.jpg"
+      image: hairFashionColorImg,
+      fallback: hairFashionColorImg
     },
     {
       id: "gal-5",
-      title: "Velvet Finish Party Makeup",
-      description: "Refined, comfortable look with smooth velvet base and soft contouring.",
-      category: "Makeup",
-      image: "/images/makeup.jpg"
+      title: "Glossy Mocha Global Hair Colour",
+      description: "Full global mocha brown hair colour with deep root coverage and lustrous natural shine.",
+      category: "Hair",
+      image: hairGlobalColorImg,
+      fallback: hairGlobalColorImg
     },
     {
       id: "gal-6",
-      title: "Airbrush Bridal Finish",
-      description: "Weightless and long-lasting finish photographed under natural lighting.",
+      title: "Royal Bridal Matha Patti & Dupatta Draping",
+      description: "Neat structural bridal bun styling suitable for heavy bridal dupattas and accessories.",
       category: "Bridal",
-      image: "/images/bridal.jpg"
+      image: hdRedBridalImg,
+      fallback: hdRedBridalImg
     }
   ];
+
+  // Helper to map known paths to imported assets
+  const resolveGalleryImage = (imgSrc, title = '', category = '') => {
+    if (!imgSrc) return hdRedBridalImg;
+    const str = String(imgSrc).toLowerCase();
+    const tStr = String(title).toLowerCase();
+
+    if (str.includes('highlights') || tStr.includes('highlights') || tStr.includes('balayage')) {
+      return hairHighlightsImg;
+    }
+    if (str.includes('fashion') || tStr.includes('fashion')) {
+      return hairFashionColorImg;
+    }
+    if (str.includes('global') || tStr.includes('global')) {
+      return hairGlobalColorImg;
+    }
+    if (str.includes('emerald') || tStr.includes('emerald')) {
+      return emeraldBridalImg;
+    }
+    if (str.includes('red') || str.includes('hd') || category.toLowerCase() === 'bridal') {
+      return hdRedBridalImg;
+    }
+    return imgSrc;
+  };
+
+  const rawList = (galleryItems && galleryItems.length > 0) ? galleryItems : defaultItems;
+
+  const items = rawList.map((item, idx) => {
+    const fallback = idx % 2 === 0 ? hdRedBridalImg : emeraldBridalImg;
+    const resolved = resolveGalleryImage(item.image, item.title, item.category || '');
+    return {
+      ...item,
+      image: resolved || fallback,
+      fallback
+    };
+  });
 
   const categories = ['All', 'Bridal', 'Makeup', 'Hair'];
 
@@ -70,11 +117,11 @@ export default function GallerySection({ onOpenBooking, galleryItems }) {
           </div>
           
           <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl text-[#2D2424] font-bold tracking-tight">
-            Client Styling Gallery
+            Client Styling &amp; Hair Gallery
           </h2>
           
           <p className="text-sm sm:text-base text-[#5C4E4D] font-sans leading-relaxed">
-            Real client transformations, bridal ceremonies, and hair designs created at Peach Salon in Manauri, Prayagraj.
+            Real client bridal looks, hair colour transformations, and styling created at Peach Salon in Manauri, Prayagraj.
           </p>
         </div>
 
@@ -90,7 +137,7 @@ export default function GallerySection({ onOpenBooking, galleryItems }) {
                   : 'bg-white text-[#5C4E4D] hover:bg-[#FDF3EF] border border-[#EFE3DF]'
               }`}
             >
-              {cat === 'All' ? 'All Work' : cat === 'Bridal' ? 'Bridal Makeup' : cat === 'Makeup' ? 'Occasion Makeup' : 'Hair Styling'}
+              {cat === 'All' ? 'All Work' : cat === 'Bridal' ? 'Bridal Makeup' : cat === 'Makeup' ? 'Occasion Makeup' : 'Hair Colour & Styling'}
             </button>
           ))}
         </div>
@@ -99,23 +146,23 @@ export default function GallerySection({ onOpenBooking, galleryItems }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredItems.map((item) => (
             <div
-              key={item.id}
+              key={item.id || item.title}
               onClick={() => setPreviewImage(item)}
               className="group studio-card overflow-hidden rounded-2xl cursor-pointer bg-white transition-all duration-300"
             >
               <div className="aspect-[4/5] relative overflow-hidden bg-[#FDF3EF]">
                 <img
-                  src={item.image || "/images/bridal.jpg"}
+                  src={item.image || item.fallback}
                   alt={item.title || "Peach Salon Bridal Styling in Prayagraj"}
                   className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500"
                   onError={(e) => {
-                    e.currentTarget.src = '/images/bridal.jpg';
+                    e.currentTarget.src = item.fallback || hdRedBridalImg;
                   }}
                 />
                 
                 <div className="absolute inset-0 bg-gradient-to-t from-[#2D2424]/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5 text-white">
                   <span className="text-[10px] font-sans uppercase tracking-wider text-[#FCEEE9] font-bold block mb-1">
-                    {item.category || "Bridal"}
+                    {item.category || "Hair & Makeup"}
                   </span>
                   <h4 className="font-serif font-bold text-base text-white leading-snug">
                     {item.title}
@@ -174,7 +221,7 @@ export default function GallerySection({ onOpenBooking, galleryItems }) {
 
             <div className="aspect-[4/5] max-h-[65vh] overflow-hidden bg-[#FDF3EF]">
               <img
-                src={previewImage.image || "/images/bridal.jpg"}
+                src={previewImage.image || previewImage.fallback || hdRedBridalImg}
                 alt={previewImage.title}
                 className="w-full h-full object-contain bg-[#1F1918]"
               />
